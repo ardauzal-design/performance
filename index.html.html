@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Picker Performance • Dmart Operasyon Portalı</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+    .ys-bg { background-color: #EA004B; }
+    .ys-bg-hover:hover { background-color: #c90040; }
+    .ys-text { color: #EA004B; }
+    .ys-border { border-color: #EA004B; }
+    .glass-header { background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(12px); }
+    .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    input[type="range"] { accent-color: #EA004B; }
+    .tab-pill-active { background-color: #0f172a; color: #ffffff; box-shadow: 0 2px 6px rgba(15,23,42,0.14); }
+    .tab-pill-inactive { color: #64748b; }
+    .tab-pill-inactive:hover { color: #0f172a; background-color: #f1f5f9; }
+    
+    @media print {
+      .no-print { display: none !important; }
+      body { background-color: #ffffff !important; }
+      .print-shadow-none { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+      main { max-width: 100% !important; padding: 0 !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-pink-100 selection:text-pink-900">
+
+  <!-- MODERN MINIMALIST HEADER -->
+  <header class="glass-header border-b border-slate-200/80 sticky top-0 z-30 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Sol: Marka & Rapor Tarihi -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl ys-bg flex items-center justify-center text-white shadow-sm shadow-pink-200 flex-shrink-0">
+          <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-lg sm:text-xl font-black tracking-tight text-slate-900">Picker Performance</h1>
+          
+          <span class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Canlı
+          </span>
+
+          <button onclick="focusDateFilter()" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-pink-50 text-pink-700 border border-pink-200/80 hover:bg-pink-100 transition" title="Rapor tarihini filtrele">
+            <i data-lucide="calendar" class="w-3 h-3"></i>
+            <span id="headerReportDate">Veri Bekleniyor</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Orta: Görünüm Seçici (Yönetici Paneli / Personel Karnem) -->
+      <div class="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/60">
+        <button onclick="switchAppMode('manager')" id="modeBtn-manager" class="px-3 py-1 rounded-xl text-xs font-bold bg-white text-slate-900 shadow-sm flex items-center gap-1.5 transition">
+          <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 ys-text"></i> Yönetici Paneli
+        </button>
+        <button onclick="switchAppMode('personal')" id="modeBtn-personal" class="px-3 py-1 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition">
+          <i data-lucide="user-check" class="w-3.5 h-3.5 text-indigo-600"></i> Personel Karnem
+        </button>
+      </div>
+
+      <!-- Sağ: Paylaşım & Yönetici Araçları -->
+      <div class="flex items-center gap-1.5">
+        <button onclick="window.print()" class="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition" title="Kurumsal PDF Brifing Yazdır">
+          <i data-lucide="printer" class="w-3.5 h-3.5"></i> PDF
+        </button>
+
+        <button onclick="downloadPodiumPNG()" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 text-xs font-bold transition" title="Podyum Tebrik Görseli İndir">
+          <i data-lucide="image" class="w-3.5 h-3.5 text-amber-600"></i> Podyum PNG
+        </button>
+
+        <button onclick="copyWhatsAppMessage()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition">
+          <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">WhatsApp</span>
+        </button>
+
+        <!-- Yönetici Kilidi Açıkken Görünen Butonlar -->
+        <div id="adminControls" class="hidden items-center gap-1.5 pl-1.5 border-l border-slate-200">
+          <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl ys-bg ys-bg-hover text-white text-xs font-bold shadow-sm transition">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+            <span>Excel Yükle</span>
+            <input type="file" id="excelInput" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleExcelUpload(event)">
+          </label>
+
+          <button onclick="openArchiveModal()" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition" title="Bulut Arşivi">
+            <i data-lucide="cloud" class="w-3.5 h-3.5 text-indigo-600"></i>
+            <span id="archiveCount">0</span>
+          </button>
+
+          <button onclick="openDirectoryModal()" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition" title="Picker Rehberi">
+            <i data-lucide="users" class="w-3.5 h-3.5 text-slate-600"></i>
+            <span id="directoryCount">0</span>
+          </button>
+
+          <button onclick="confirmClearData()" class="p-1.5 rounded-xl text-rose-600 hover:bg-rose-50 transition" title="Ekranı Temizle">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Yönetici Kilidi Butonu -->
+        <button onclick="toggleAdminAuth()" id="authToggleBtn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-sm transition">
+          <i id="authLockIcon" data-lucide="lock" class="w-3.5 h-3.5 text-slate-500"></i>
+          <span id="authLockLabel" class="hidden sm:inline">Yönetici</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Alt Sekme Barı (Sadece Yönetici Panelinde Görünür) -->
+    <div id="managerSubNav" class="bg-slate-50/90 border-t border-slate-200/60">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4 overflow-x-auto">
+        <nav class="flex items-center gap-1.5">
+          <button onclick="switchTab('personnel')" id="tabBtn-personnel" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition tab-pill-active flex items-center gap-1.5 whitespace-nowrap">
+            <i data-lucide="zap" class="w-3.5 h-3.5"></i> Personel Performansı
+          </button>
+          <button onclick="switchTab('inbound')" id="tabBtn-inbound" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition tab-pill-inactive flex items-center gap-1.5 whitespace-nowrap">
+            <i data-lucide="boxes" class="w-3.5 h-3.5"></i> Mal Kabul & Sayım
+            <span id="inboundBadgeCount" class="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">0</span>
+          </button>
+          <button onclick="switchTab('stores')" id="tabBtn-stores" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition tab-pill-inactive flex items-center gap-1.5 whitespace-nowrap">
+            <i data-lucide="store" class="w-3.5 h-3.5"></i> İzmir Mağaza Ligi
+            <span id="storeBadgeCount" class="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">0</span>
+          </button>
+          <button onclick="switchTab('monthly')" id="tabBtn-monthly" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition tab-pill-inactive flex items-center gap-1.5 whitespace-nowrap">
+            <i data-lucide="trophy" class="w-3.5 h-3.5"></i> Aylık Şampiyonlar Ligi
+            <span id="monthlyBadgeCount" class="px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">0</span>
+          </button>
+        </nav>
+
+        <span class="text-[11px] font-medium text-slate-400 hidden lg:inline">
+          💡 Trend grafiği, hedef simülatörü ve not için personel satırına tıklayın
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================================================================= -->
+  <!-- MOD A: YÖNETİCİ PANELİ                                                 -->
+  <!-- ======================================================================= -->
+  <main id="appView-manager" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- Yazdırma / PDF Başlığı (Sadece PDF çıktısında görünür) -->
+    <div class="hidden print:flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-4">
+      <div>
+        <h1 class="text-2xl font-black text-slate-900">Picker Performance • Yönetici Operasyon Brifingi</h1>
+        <p id="printSubtitle" class="text-xs text-slate-500 mt-1">İzmir Depoları Performans & Kalite Raporu</p>
+      </div>
+      <div class="text-right">
+        <span id="printDateBadge" class="text-sm font-black text-pink-600">-</span>
+      </div>
+    </div>
+
+    <!-- 5 MİNİMALİST KPI KARTI -->
+    <section class="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Toplam Sipariş</p>
+          <p id="kpiTotalOrders" class="text-2xl font-black text-slate-900 mt-1">0</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Picked Orders</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center no-print">
+          <i data-lucide="package" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Toplanan Ürün</p>
+          <p id="kpiTotalItems" class="text-2xl font-black text-slate-900 mt-1">0</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Picked Items</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center no-print">
+          <i data-lucide="layers" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Ort. Geçiş Hızı</p>
+          <p id="kpiAvgSpeed" class="text-2xl font-black text-slate-900 mt-1">0 <span class="text-xs font-medium text-slate-400">sn</span></p>
+          <p class="text-[11px] text-emerald-600 font-semibold mt-0.5">Ağırlıklı Ort.</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center no-print">
+          <i data-lucide="gauge" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Yeşil Barem</p>
+          <p id="kpiGreenRatio" class="text-2xl font-black text-slate-900 mt-1">%0</p>
+          <p id="kpiGreenCounts" class="text-[11px] text-slate-400 mt-0.5">0 / 0 Aktif Picker</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-pink-50 ys-text flex items-center justify-center no-print">
+          <i data-lucide="target" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between col-span-2 lg:col-span-1">
+        <div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Ort. Eksik (PFR)</p>
+          <p id="kpiAvgPfr" class="text-2xl font-black text-slate-900 mt-1">%0.0</p>
+          <p id="kpiPerfectCount" class="text-[11px] text-cyan-600 font-semibold mt-0.5">0 Kusursuz</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center no-print">
+          <i data-lucide="gem" class="w-5 h-5"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODÜL 1: AKILLI VARDİYA & OPERASYON KOÇU (OTOMATİK TEŞHİS KARTLARI) -->
+    <section id="coachSection" class="hidden bg-white rounded-2xl border border-indigo-100 shadow-sm print-shadow-none overflow-hidden">
+      <div class="px-5 py-3 bg-gradient-to-r from-indigo-50/80 via-purple-50/40 to-white border-b border-indigo-100/60 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          </span>
+          <div>
+            <h2 class="text-xs font-extrabold text-slate-900">Akıllı Vardiya & Operasyon Koçu</h2>
+            <p class="text-[10px] text-slate-500">Hız, kalite (PFR), mal kabul yükü ve geçmiş trendlerin otomatik çapraz analizi</p>
+          </div>
+        </div>
+        <button onclick="toggleCoachBody()" class="text-[11px] font-bold text-indigo-600 hover:underline no-print" id="coachToggleBtn">Gizle</button>
+      </div>
+      <div id="coachInsightsGrid" class="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs"></div>
+    </section>
+
+    <!-- SEKME 1: PERSONEL PERFORMANSI -->
+    <div id="view-personnel" class="space-y-6">
+      
+      <!-- Sade Filtre Şeridi -->
+      <div class="bg-white rounded-2xl p-3.5 border border-slate-200/70 shadow-sm flex flex-wrap items-center justify-between gap-3 no-print">
+        <div class="flex flex-wrap items-center gap-2 flex-1">
+          <div class="relative w-48 sm:w-56">
+            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400"></i>
+            <input type="text" id="searchInput" oninput="recalculateView()" placeholder="ID veya İsim ara..." 
+                   class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-pink-500">
+          </div>
+
+          <select id="dateFilterSelect" onchange="recalculateView()" class="px-3 py-1.5 bg-pink-50/60 border border-pink-200 rounded-xl text-xs font-bold text-pink-800 focus:outline-none">
+            <option value="ALL">Tüm Rapor Tarihleri</option>
+          </select>
+
+          <select id="storeFilterSelect" onchange="recalculateView()" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none">
+            <option value="ALL">Tüm Mağazalar</option>
+          </select>
+
+          <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+            <button onclick="setStatusFilter('all')" id="btnFilterAll" class="px-2.5 py-1 rounded-lg bg-white shadow-sm text-slate-900">Tümü</button>
+            <button onclick="setStatusFilter('green')" id="btnFilterGreen" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900">Yeşil Barem</button>
+            <button onclick="setStatusFilter('perfect')" id="btnFilterPerfect" class="px-2.5 py-1 rounded-lg text-cyan-700 hover:text-cyan-900">💎 Kusursuz</button>
+            <button onclick="setStatusFilter('warning')" id="btnFilterWarning" class="px-2.5 py-1 rounded-lg text-rose-700 hover:text-rose-900">Dikkat</button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-500 font-medium">Hedef:</span>
+          <input type="number" id="thresholdSec" value="12" min="1" max="60" onchange="saveThreshold()"
+                 class="w-12 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-center text-slate-800 focus:outline-none focus:border-pink-500">
+          <span id="thresholdBadge" class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">≤ 12 sn</span>
+        </div>
+      </div>
+
+      <!-- Ana Sıralama Tablosu -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm print-shadow-none overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <i data-lucide="award" class="w-4 h-4 ys-text"></i>
+              Aktif Sipariş Toplayanlar & Başarı Rozetleri
+            </h2>
+            <p class="text-[11px] text-slate-400 mt-0.5">⚡ Şimşek (En Hızlı) • 🏋️ Demir Adam (En Çok Hacim) • 🎯 Keskin Nişancı (≥300 Ürün & %0 PFR) • 📦 Depo Kahramanı</p>
+          </div>
+          <span id="activeRecordCount" class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">0 Aktif Picker</span>
+        </div>
+
+        <div class="overflow-x-auto custom-scroll">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <th class="py-3 px-4 text-center w-12">Sıra</th>
+                <th class="py-3 px-3">Picker ID</th>
+                <th class="py-3 px-4">Personel & Başarı Rozetleri</th>
+                <th class="py-3 px-3 text-right">Sipariş</th>
+                <th class="py-3 px-3 text-right">Ürün</th>
+                <th class="py-3 px-3 text-center">Geçiş Hızı & Trend</th>
+                <th class="py-3 px-3 text-center">UTR / Saat</th>
+                <th class="py-3 px-3 text-center">Eksik (PFR)</th>
+                <th class="py-3 px-3 text-center">Skor</th>
+                <th class="py-3 px-4 text-center">Durum</th>
+              </tr>
+            </thead>
+            <tbody id="performanceTableBody" class="divide-y divide-slate-100 text-xs">
+              <tr>
+                <td colspan="10" class="text-center py-14 text-slate-400">
+                  <i data-lucide="file-spreadsheet" class="w-9 h-9 mx-auto text-slate-300 mb-2"></i>
+                  Henüz veri yüklenmedi. Sağ üstten <strong>Yönetici</strong> girişi yaparak Excel dosyanızı yükleyebilirsiniz.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bg-slate-50/70 px-5 py-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between text-[11px] text-slate-500">
+          <span id="tableSummaryText">0 aktif picker listelendi</span>
+          <div class="flex items-center gap-4">
+            <span>Ort. Sepet: <strong id="avgBasketText" class="text-slate-700">0 ürün</strong></span>
+            <span>Toplam Toplama Süresi: <strong id="totalSpentText" class="text-slate-700">0 dk</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AYRI LİSTE: HİÇ SİPARİŞ TOPLAMAYANLAR -->
+      <div id="zeroOrderSection" class="hidden bg-white rounded-2xl border border-amber-200/80 shadow-sm print-shadow-none overflow-hidden">
+        <div class="px-5 py-3.5 bg-amber-50/60 border-b border-amber-200/70 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center no-print">
+              <i data-lucide="user-minus" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-extrabold text-amber-950">Hiç Sipariş Toplamayanlar (0 Sipariş / Destek Görevleri)</h3>
+              <p class="text-[11px] text-amber-800/80">Hız sıralamasını etkilememesi için ayrıldı • Mal Kabul (PO) veya Sayım (CC) yapanlar burada görünür</p>
+            </div>
+          </div>
+          <span id="zeroOrderCountBadge" class="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900">0 Personel</span>
+        </div>
+
+        <div class="overflow-x-auto custom-scroll">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <th class="py-2.5 px-4">Picker ID</th>
+                <th class="py-2.5 px-4">Personel Adı Soyadı</th>
+                <th class="py-2.5 px-4">Mağaza</th>
+                <th class="py-2.5 px-4 text-center">Çalışma Süresi</th>
+                <th class="py-2.5 px-4 text-center">Vardiya Disiplini</th>
+                <th class="py-2.5 px-4 text-center">Alternatif Görev (Mal Kabul / Sayım)</th>
+                <th class="py-2.5 px-4 text-center no-print">İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="zeroOrderTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEKME 2: MAL KABUL & SAYIM -->
+    <div id="view-inbound" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100">
+          <h2 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+            <i data-lucide="boxes" class="w-4 h-4 text-indigo-600"></i>
+            Mal Kabul (PO) & Stok Sayım (Cycle Count) Performansı
+          </h2>
+          <p class="text-[11px] text-slate-400 mt-0.5">Sipariş toplama dışında mal kabul ve sayım operasyonu yürüten personellerin verimlilik tablosu</p>
+        </div>
+        <div class="overflow-x-auto custom-scroll">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <th class="py-3 px-4">Picker ID</th>
+                <th class="py-3 px-4">Personel Adı Soyadı</th>
+                <th class="py-3 px-4">Mağaza</th>
+                <th class="py-3 px-4 text-right">PO Kabul Edilen Ürün</th>
+                <th class="py-3 px-4 text-center">PO Kabul Hızı (sn/ürün)</th>
+                <th class="py-3 px-4 text-center">Sayım Hızı (CC/SKU sn)</th>
+                <th class="py-3 px-4 text-center">Sayım Hızı (CC/Item sn)</th>
+                <th class="py-3 px-4 text-center">Toplam Çalışma</th>
+              </tr>
+            </thead>
+            <tbody id="inboundTableBody" class="divide-y divide-slate-100 text-xs">
+              <tr><td colspan="8" class="text-center py-12 text-slate-400">Mal kabul veya sayım verisi bulunamadı.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEKME 3: İZMİR MAĞAZA LİGİ -->
+    <div id="view-stores" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100">
+          <h2 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+            <i data-lucide="store" class="w-4 h-4 ys-text"></i>
+            İzmir Mağazalar Arası Performans Ligi
+          </h2>
+          <p class="text-[11px] text-slate-400 mt-0.5">Depoların ağırlıklı ürün geçiş hızı, toplam hacim ve kalite (PFR) sıralaması</p>
+        </div>
+        <div class="overflow-x-auto custom-scroll">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <th class="py-3 px-4 text-center w-16">Lig</th>
+                <th class="py-3 px-4">Mağaza / Depo</th>
+                <th class="py-3 px-4 text-center">Aktif Picker</th>
+                <th class="py-3 px-4 text-right">Sipariş</th>
+                <th class="py-3 px-4 text-right">Ürün</th>
+                <th class="py-3 px-4 text-center">Depo Ort. Hız</th>
+                <th class="py-3 px-4 text-center">Ort. PFR</th>
+                <th class="py-3 px-4 text-center">Durum</th>
+              </tr>
+            </thead>
+            <tbody id="storeLeagueBody" class="divide-y divide-slate-100 text-xs">
+              <tr><td colspan="8" class="text-center py-12 text-slate-400">Mağaza ligi için veri bekleniyor.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEKME 4: AYLIK ŞAMPİYONLAR LİGİ -->
+    <div id="view-monthly" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <i data-lucide="crown" class="w-4 h-4 text-amber-500"></i>
+              Aylık Şampiyonlar Ligi (Bulut Arşivi Kümülatif Puan Tablosu)
+            </h2>
+            <p class="text-[11px] text-slate-400 mt-0.5">Arşivdeki tüm raporların birleştirilmiş sezon liderlik sıralaması</p>
+          </div>
+          <button onclick="fetchArchiveFromCloud(true)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Yenile
+          </button>
+        </div>
+        <div class="overflow-x-auto custom-scroll">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <th class="py-3 px-4 text-center w-16">Sıra</th>
+                <th class="py-3 px-4">Picker ID</th>
+                <th class="py-3 px-4">Personel Adı Soyadı</th>
+                <th class="py-3 px-4 text-center">Rapor Sayısı</th>
+                <th class="py-3 px-4 text-center">Yeşil Barem Günü</th>
+                <th class="py-3 px-4 text-right">Kümülatif Ürün</th>
+                <th class="py-3 px-4 text-center">Genel Ort. Hız</th>
+                <th class="py-3 px-4 text-center">Şampiyonluk Puanı</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyLeagueBody" class="divide-y divide-slate-100 text-xs">
+              <tr><td colspan="8" class="text-center py-12 text-slate-400">Bulut arşivinde henüz rapor yok.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ======================================================================= -->
+  <!-- MOD B: PERSONEL KARNEM (MOBİL ÇALIŞAN GÖRÜNÜMÜ)                         -->
+  <!-- ======================================================================= -->
+  <main id="appView-personal" class="hidden max-w-xl mx-auto px-4 py-8 flex-1 w-full space-y-6">
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+          <i data-lucide="user-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="text-base font-black text-slate-900">Personel Performans Karnem</h2>
+          <p class="text-xs text-slate-500">Kendi adınızı veya ID numaranızı seçerek günlük karnenizi görüntüleyin</p>
+        </div>
+      </div>
+
+      <select id="personalSelect" onchange="renderPersonalScorecard()" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:outline-none focus:border-pink-500">
+        <option value="">-- Personel Seçiniz --</option>
+      </select>
+    </div>
+
+    <div id="personalCardContainer" class="hidden"></div>
+  </main>
+
+  <!-- GİZLİ CANVAS (PNG PODYUM GÖRSELİ) -->
+  <canvas id="podiumCanvas" width="1080" height="1350" class="hidden"></canvas>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: PERSONEL DETAY, TREND GRAFİĞİ, SİMÜLATÖR & YÖNETİCİ NOTU     -->
+  <!-- ===================================================================== -->
+  <div id="personDetailModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col">
+      <div class="ys-bg p-5 text-white flex items-center justify-between flex-shrink-0">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="detStoreChip" class="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full">Mağaza</span>
+            <span id="detDisciplineChip" class="text-[10px] font-bold bg-emerald-400/30 px-2.5 py-0.5 rounded-full">Vardiya Uyumlu</span>
+          </div>
+          <h3 id="detPersonName" class="font-black text-xl mt-1">Personel Adı</h3>
+          <p id="detPersonMeta" class="text-xs text-pink-100">ID: -</p>
+        </div>
+        <button onclick="closeModal('personDetailModal')" class="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto custom-scroll space-y-5">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+          <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Geçiş Hızı</p>
+            <p id="detSpeed" class="text-lg font-black text-slate-900 mt-0.5">0 sn</p>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Saatlik Verim (UTR)</p>
+            <p id="detUtr" class="text-lg font-black text-indigo-600 mt-0.5">0</p>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Çalışma Saati</p>
+            <p id="detWorkHours" class="text-lg font-black text-slate-800 mt-0.5">0 sa</p>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Eksik (PFR)</p>
+            <p id="detPfr" class="text-lg font-black text-emerald-600 mt-0.5">%0</p>
+          </div>
+        </div>
+
+        <!-- Trend Grafiği -->
+        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/70">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+              <i data-lucide="trending-up" class="w-4 h-4 text-indigo-600"></i>
+              Arşiv Raporlarına Göre Hız Trendi
+            </h4>
+            <span class="text-[10px] font-semibold text-slate-400">Düşük çubuk = Daha hızlı</span>
+          </div>
+          <div id="detTrendChart" class="flex items-end gap-2 h-28 pt-4 px-2 bg-white rounded-xl border border-slate-100"></div>
+        </div>
+
+        <!-- Simülatör -->
+        <div class="bg-pink-50/40 p-4 rounded-2xl border border-pink-200/70 space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-extrabold text-pink-900 flex items-center gap-1.5">
+              <i data-lucide="calculator" class="w-4 h-4 ys-text"></i> Canlı Hedef Kurtarma Simülatörü
+            </span>
+            <span id="simPaceLabel" class="text-xs font-black ys-text">9.5 sn/ürün</span>
+          </div>
+          <input type="range" id="simPaceSlider" min="5" max="15" step="0.5" value="9.5" oninput="updateSimulatorCalc()" class="w-full">
+          <div id="simResultBox" class="p-3 rounded-xl bg-white border border-slate-200/80 text-xs text-slate-700 leading-relaxed"></div>
+        </div>
+
+        <!-- Yönetici Notu -->
+        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+              <i data-lucide="sticky-note" class="w-4 h-4 text-amber-500"></i>
+              Yönetici Saha & Vardiya Notu
+            </label>
+            <span id="noteLockHint" class="text-[10px] font-semibold text-slate-400">Düzenlemek için Yönetici Girişi yapın</span>
+          </div>
+          <textarea id="detManagerNote" rows="2" placeholder="Örn: Soğuk zincir reyonunda destek verdi, el terminali değişimi yapıldı..." 
+                    class="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-pink-500 disabled:bg-slate-100 disabled:text-slate-500"></textarea>
+          <div class="flex justify-end">
+            <button id="saveNoteBtn" onclick="saveManagerNote()" class="px-4 py-1.5 rounded-xl ys-bg ys-bg-hover text-white text-xs font-bold transition shadow-sm">
+              Notu Kaydet
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: YÖNETİCİ PIN GİRİŞİ                                         -->
+  <!-- ===================================================================== -->
+  <div id="pinModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xs w-full p-6 shadow-2xl border border-slate-100 text-center space-y-4">
+      <div class="w-12 h-12 rounded-2xl bg-pink-50 ys-text mx-auto flex items-center justify-center">
+        <i data-lucide="shield-check" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-black text-slate-900">Yönetici Girişi</h3>
+        <p class="text-xs text-slate-500 mt-1">Excel yükleme ve düzenleme yetkisi için PIN kodunu girin <span class="text-slate-400">(Varsayılan: 1234)</span></p>
+      </div>
+      <input type="password" id="pinInput" maxlength="8" placeholder="••••" onkeydown="if(event.key==='Enter') verifyAdminPin()"
+             class="w-full py-2.5 px-4 text-center text-lg font-black tracking-widest bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-pink-500">
+      <div class="flex gap-2">
+        <button onclick="closeModal('pinModal')" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Vazgeç</button>
+        <button onclick="verifyAdminPin()" class="flex-1 py-2 rounded-xl ys-bg text-white text-xs font-bold">Kilidi Aç</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: PICKER REHBERİ & TOPLU EXCEL SÜRÜKLE-BIRAK AKTARIMI          -->
+  <!-- ===================================================================== -->
+  <div id="directoryModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden">
+      <div class="ys-bg p-5 text-white flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-base">Picker Rehberi & Toplu Excel Aktarımı</h3>
+          <p class="text-xs text-pink-100">175 İzmir personeli kayıtlı • Excel sürükleyerek toplu güncelleyin</p>
+        </div>
+        <button onclick="closeModal('directoryModal')" class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-5 space-y-3.5">
+        <!-- Modül 5: Sürükle-Bırak Toplu Excel İsim Aktarımı -->
+        <label id="dirDropZone" ondragover="event.preventDefault(); this.classList.add('border-pink-500','bg-pink-50/50')" ondragleave="this.classList.remove('border-pink-500','bg-pink-50/50')" ondrop="handleBulkDirectoryDrop(event)"
+               class="cursor-pointer block border-2 border-dashed border-slate-300 hover:border-pink-400 rounded-2xl p-3.5 text-center transition bg-slate-50/60">
+          <i data-lucide="file-up" class="w-5 h-5 mx-auto text-pink-600 mb-1"></i>
+          <p class="text-xs font-bold text-slate-700">Toplu Personel Listesi Excel'ini Buraya Sürükleyin veya Seçin</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">Shopper ID / Picker ID ve İsim sütunlarını otomatik eşleştirir</p>
+          <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleBulkDirectoryFile(event)">
+        </label>
+
+        <div class="grid grid-cols-2 gap-2">
+          <input type="text" id="newPickerId" placeholder="Tekil Picker ID" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">
+          <input type="text" id="newPickerName" placeholder="Adı Soyadı" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold">
+        </div>
+        <button onclick="addPickerToDirectory()" class="w-full py-2 rounded-xl ys-bg ys-bg-hover text-white text-xs font-bold">Tekil Olarak Ekle</button>
+
+        <input type="text" id="dirSearchInput" oninput="renderDirectoryList()" placeholder="Rehberde ara..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+        <div id="directoryList" class="max-h-48 overflow-y-auto custom-scroll space-y-1.5 text-xs"></div>
+      </div>
+      <div class="bg-slate-50 px-5 py-3 border-t border-slate-100 flex justify-end">
+        <button onclick="closeModal('directoryModal')" class="px-4 py-1.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: BULUT ARŞİVİ                                                 -->
+  <!-- ===================================================================== -->
+  <div id="archiveModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-100 overflow-hidden">
+      <div class="bg-slate-900 p-5 text-white flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-base flex items-center gap-2"><i data-lucide="cloud" class="w-4 h-4 text-emerald-400"></i> Bulut Rapor Arşivi</h3>
+          <p class="text-xs text-slate-400">Geçmiş raporları geri yükleyin veya yönetin</p>
+        </div>
+        <button onclick="closeModal('archiveModal')" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-5">
+        <div id="archiveList" class="max-h-72 overflow-y-auto custom-scroll space-y-2 text-xs"></div>
+      </div>
+      <div class="bg-slate-50 px-5 py-3 border-t border-slate-100 flex justify-end">
+        <button onclick="closeModal('archiveModal')" class="px-4 py-1.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. FIREBASE & DURUM DEĞİŞKENLERİ
+    // ==========================================
+    const DB_URL = "https://balcova-pano-default-rtdb.europe-west1.firebasedatabase.app";
+    const ADMIN_PIN = "1234";
+
+    let isAdmin = false;
+    let rawRecords = [];
+    let activePickersList = [];
+    let zeroOrderPickersList = [];
+    let inboundList = [];
+    let storeLeagueList = [];
+    let cloudArchive = {};
+    let managerNotes = {};
+    let previousSpeedMap = {};
+
+    let statusFilter = "all";
+    let targetThreshold = 12;
+    let selectedDetailPerson = null;
+
+    // 175 Kişilik İzmir Mağazaları Personel Rehberi
+    let directory = {
+      "40510": "Abdullah AYDOĞMUŞ", "32231": "Arda Daşbaş", "41855": "Caner Gündüz", "26103": "Dilara Turan",
+      "38814": "Efe GÖKÇAY", "37406": "Eltaç İsmayilov", "39432": "Emin KÖSEM", "38218": "Emir ERÖZ",
+      "39586": "Emre BİNGÖL", "26091": "Görkem Savran", "32983": "Kerim ADALET", "41854": "Mehmet Can Kavak",
+      "38895": "Mehmet Can Kavak", "36897": "Ogün COŞKUN", "40554": "Onur Güneş", "40226": "Samet AKCABELEN",
+      "35822": "Sidar Öz", "39411": "Utkuhan Yılmaz", "34148": "Veli Avcı", "38641": "Yunus Emre DÖŞ",
+      "39503": "Yusuf ÖZKAN", "42084": "Çağan VARDAR", "43943": "ABDURRAHİM YÜCE", "43036": "EMRAH ÇAĞLAR",
+      "44670": "ENGİN ENGİNSU", "35435": "Elif Şahin", "43444": "FARUK YILDIZ", "42358": "GÖKHAN AKGÜL",
+      "39680": "HALİL İBRAHİM BOZKURT", "40691": "HASAN BERK AKDAŞ", "43822": "MERT ALTINDAĞ",
+      "40412": "MEVLÜT AĞAN", "39280": "Merve Güven", "36691": "Samet DEMİRCİ", "342": "Ömer METE",
+      "43797": "AHMED TAHA SARAÇ", "7471": "Arda UZAL DM", "39413": "Burcu Meşe", "42002": "ERKAN KÜTÜK",
+      "41842": "FATİH ALPEREN ALKAN", "40105": "GÖKHAN ÇALIK", "43273": "KEZİBAN YENİKALE TURAN",
+      "38547": "Mahmut Aydemir", "37724": "Mehmet Yiğit Arslan", "475": "Osman AYDIN", "30818": "Oğuz Çağrı AK",
+      "44283": "SABRİ DENİZ GÜLCAN", "46009": "SABRİ DENİZ GÜLCAN", "37437": "Aslı Özeren", "5830": "Dilay KOYUN",
+      "44519": "ENES ULUSAL", "37195": "Emirhan YETİŞ", "39514": "Enes Garip", "6958": "Mutlu Can PEKSEZGİN DM",
+      "41617": "SEBAHATTİN TURHAN", "39822": "SEDA GÖRÜROĞLU", "39845": "Yağız Divrik", "38132": "cahit sıtkı baran",
+      "34695": "ulaş asılı", "40854": "ÖMER ŞAHİN", "40544": "ÖZGÜR GÖRÜROĞLU", "38888": "İsmail Gencer",
+      "43100": "AHMET GÜÇLÜ", "34158": "Arda Uzun", "37697": "Ata Umut UÇKAN", "43217": "BOĞAÇHAN CEYHAN",
+      "38858": "CEM YILDIRIM", "42172": "DOĞUKAN GELDİ", "43583": "EDA ERDEN", "44632": "EMİRCAN EROZAN",
+      "44243": "EMİRHAN EKIN", "248": "Erdem KINAK", "44282": "GAMZE KAPBAŞ", "38148": "Keziban AYDOĞAN",
+      "40051": "MEDİHA DÜNEN", "43580": "NESRİN ZEKİYE ERSOY", "42909": "NUR KAYA", "5847": "Nesibe SAKARYA",
+      "41294": "SELAHATTİN ASLAN", "44662": "Selahattin ERTAŞ", "7001": "Selçuk İÇLİSALKIM DM",
+      "610": "Sinan ÖZÇARE", "5677": "Tacettin YALÇİN", "40115": "UMUT ALTUN", "43930": "YASİN YILDIRIM",
+      "46861": "ÖMER FIRAT TÜRKYILMAZ", "38848": "İsmail Gökay", "42637": "ANIL BAYRAKTAR",
+      "36374": "AYDIN TÜREDİ", "43855": "BARAN AKBULUT", "37469": "Can KARAPINAR", "41108": "EMİN COŞKUN",
+      "5114": "Hicabi SARISAKAL", "46011": "MURAT TAŞCI", "6934": "Muhsin Özgür ÇAKIR DM", "42580": "NİHAL GÜNDÜZ",
+      "33752": "Semihcan Özdemir", "42863": "UĞUR AŞER", "44502": "YİĞİT MUHAMMET YILMAZ", "37941": "Zafer Emre Yetim",
+      "39112": "Ziya Ektiren", "37754": "Ömer Çakır", "44561": "İSMAİL KAHRAMAN", "43738": "ALEYNA KOTAN",
+      "38369": "Arda Tuna Aşık", "5304": "Aziz Burak ÇAĞLAR", "37169": "BERŞAN SEVİN", "42134": "ORÇUN AKBALIK",
+      "7014": "Oğuzhan EZGİN DM", "38548": "Tuğba Karaarslan", "43896": "UĞUR TÜRK", "40936": "ADİL UZUN",
+      "40933": "ARDA KIZMAZ", "36192": "AYBÜKE ÇUKURLUO", "35675": "AYşENUR MEDİK", "30779": "Adem ARSLANKAYA",
+      "34452": "Ayaz SAYGIN", "35645": "Damla KOCAER", "36739": "Deniz ÇEVİK", "38856": "Doğa SAYIN",
+      "43843": "Doğukan Polat", "40829": "EDA ERDEN", "35676": "EMİNE ARSLANKAYA", "36741": "Ecem Diken",
+      "43841": "Esma Aydemir", "43562": "Furkan Zengin", "32996": "GÖRKEM BOZKURT", "37045": "HARUN TAN",
+      "34632": "MEHMET DEMİRKOL", "36880": "NİSA KARABIYIK", "34631": "SEMANUR KILIÇ", "40934": "YUSUF KAAN KORKMAZ",
+      "40935": "ZEYNEP VURGUN", "593": "Ömer Faruk BULUT", "40932": "ÜMİT BENZEŞ", "42225": "ADEM KALIN",
+      "43872": "AHMET NURİ KARADAĞ", "42422": "ALMİNA ŞAHİNCİ", "28922": "Ali Halat", "35260": "Atahan Bülbül",
+      "44281": "ENES TAŞIN", "5831": "Ferhat OĞUR", "21832": "Güney ÖZDEMİR", "43280": "GİZEM DEMİR",
+      "43891": "KAAN ERSEGÜN GÖZAYDIN", "32360": "Mehmet Yöndem", "40999": "RECEP ONUR AKYÜZ",
+      "30781": "Seval PAN", "44012": "TEOMAN AJLAN ÇİFÇİ", "44324": "TUANA AYBEK", "5029": "Uğur AKYÜZ",
+      "40085": "VEYSEL DENİZ KIZILKAYA", "44602": "BATUHAN ALBAYRAK", "522": "Cengizhan YİĞİT",
+      "42170": "EFE GÜROĞLU", "43947": "EGE ERSEGÜN GÖZAYDIN", "40922": "EGEMEN SEVİM", "43962": "ENES FURKAN ÖZMEN",
+      "34777": "Emircan Fırtına", "35864": "Gökhan Özkan", "43383": "HASAN DURMAZ", "34691": "Mahmut parlar",
+      "38530": "Mehmet Emre Saper", "38529": "Miraç Kaya", "34692": "Nurettin solmazer", "43961": "NİHAT AKÇAY",
+      "43850": "SERKAN ATLI", "34752": "Samed Gül", "39227": "Semih Üstündağ", "38424": "Taha Gürol Aslanata",
+      "34704": "emirhan aras", "34699": "hakan uysal", "34696": "ramazan bilensoy", "34694": "sefa akyüz",
+      "5580": "İsmail TURAN"
+    };
+
+    // ==========================================
+    // 2. GÖRÜNÜM MODU (YÖNETİCİ VS PERSONEL KARNEM) & YETKİ
+    // ==========================================
+    function switchAppMode(mode) {
+      const mgrView = document.getElementById("appView-manager");
+      const perView = document.getElementById("appView-personal");
+      const subNav = document.getElementById("managerSubNav");
+      const btnM = document.getElementById("modeBtn-manager");
+      const btnP = document.getElementById("modeBtn-personal");
+
+      if (mode === "personal") {
+        mgrView.classList.add("hidden");
+        subNav.classList.add("hidden");
+        perView.classList.remove("hidden");
+        btnP.className = "px-3 py-1 rounded-xl text-xs font-bold bg-white text-slate-900 shadow-sm flex items-center gap-1.5 transition";
+        btnM.className = "px-3 py-1 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition";
+        populatePersonalDropdown();
+      } else {
+        perView.classList.add("hidden");
+        mgrView.classList.remove("hidden");
+        subNav.classList.remove("hidden");
+        btnM.className = "px-3 py-1 rounded-xl text-xs font-bold bg-white text-slate-900 shadow-sm flex items-center gap-1.5 transition";
+        btnP.className = "px-3 py-1 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition";
+      }
+      lucide.createIcons();
+    }
+
+    function focusDateFilter() {
+      switchAppMode("manager");
+      switchTab("personnel");
+      setTimeout(function() { document.getElementById("dateFilterSelect").focus(); }, 100);
+    }
+
+    function toggleAdminAuth() {
+      if (isAdmin) {
+        isAdmin = false;
+        applyAuthUI();
+      } else {
+        document.getElementById("pinInput").value = "";
+        document.getElementById("pinModal").classList.remove("hidden");
+        setTimeout(function() { document.getElementById("pinInput").focus(); }, 100);
+      }
+    }
+
+    function verifyAdminPin() {
+      if (document.getElementById("pinInput").value.trim() === ADMIN_PIN) {
+        isAdmin = true;
+        closeModal("pinModal");
+        applyAuthUI();
+      } else {
+        alert("Hatalı Yönetici PIN kodu! (Varsayılan PIN: 1234)");
+      }
+    }
+
+    function applyAuthUI() {
+      const ctrl = document.getElementById("adminControls");
+      const btn = document.getElementById("authToggleBtn");
+      const icon = document.getElementById("authLockIcon");
+      const label = document.getElementById("authLockLabel");
+
+      if (isAdmin) {
+        ctrl.classList.remove("hidden");
+        ctrl.classList.add("flex");
+        btn.className = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-sm transition";
+        icon.setAttribute("data-lucide", "unlock");
+        icon.className = "w-3.5 h-3.5 text-emerald-400";
+        label.innerText = "Yönetici Aktif";
+      } else {
+        ctrl.classList.add("hidden");
+        ctrl.classList.remove("flex");
+        btn.className = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-sm transition";
+        icon.setAttribute("data-lucide", "lock");
+        icon.className = "w-3.5 h-3.5 text-slate-500";
+        label.innerText = "Yönetici";
+      }
+      lucide.createIcons();
+    }
+
+    // ==========================================
+    // 3. EXCEL PARSER & TOPLU REHBER SÜRÜKLE-BIRAK
+    // ==========================================
+    function getValByAliases(row, aliases) {
+      const keys = Object.keys(row);
+      for (let i = 0; i < keys.length; i++) {
+        const cleanKey = keys[i].trim().toLowerCase();
+        for (let j = 0; j < aliases.length; j++) {
+          if (cleanKey === aliases[j].toLowerCase()) return row[keys[i]];
+        }
+      }
+      return null;
+    }
+
+    function formatExcelDate(val) {
+      if (val === null || val === undefined || val === "") return "Belirtilmemiş";
+      if (typeof val === "number" && val > 20000 && val < 80000) {
+        const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+        const months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+        return d.getUTCDate() + " " + months[d.getUTCMonth()] + " " + d.getUTCFullYear();
+      }
+      return String(val).trim();
+    }
+
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+
+          // 2. Sayfa Varsa Rehberi Otomatik Güncelle
+          if (workbook.SheetNames.length > 1) {
+            const sheet2 = workbook.Sheets[workbook.SheetNames[1]];
+            const s2Rows = XLSX.utils.sheet_to_json(sheet2);
+            s2Rows.forEach(function(r) {
+              const sId = getValByAliases(r, ["shopper_id", "picker_id", "picker id", "id"]);
+              const rName = getValByAliases(r, ["rider_name", "name", "personel", "ad soyad", "isim"]);
+              if (sId && rName) directory[String(sId).trim()] = String(rName).trim();
+            });
+            saveLocal();
+          }
+
+          const sheet1 = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet1);
+
+          if (!rows || rows.length === 0) {
+            alert("Excel dosyasında veri bulunamadı.");
+            return;
+          }
+
+          const parsed = [];
+          rows.forEach(function(r) {
+            const rawId = getValByAliases(r, ["Picker Id", "shopper_id", "PickerID", "ID", "Picker"]);
+            if (!rawId) return;
+
+            const pId = String(rawId).trim();
+            const rawName = getValByAliases(r, ["Unnamed: 1", "rider_name", "Personel Adı Soyadı", "Name", "İsim"]);
+            if (rawName && !directory[pId]) directory[pId] = String(rawName).trim();
+
+            const rawDate = getValByAliases(r, ["Date Granularity", "Date", "Tarih", "Day"]);
+            const reportDate = formatExcelDate(rawDate);
+
+            const rawStore = getValByAliases(r, ["DMart", "Store", "Mağaza", "Depo"]);
+            const storeName = rawStore ? String(rawStore).trim() : "Balçova Depo";
+
+            const orders = Number(getValByAliases(r, ["Picked Orders", "Orders", "Sipariş"])) || 0;
+            const items = Number(getValByAliases(r, ["Picked Items", "Items", "Ürün"])) || 0;
+            const sec = Number(getValByAliases(r, ["Picking Per Item (sec)", "Picking Per Item", "Geçiş Süresi"])) || 0;
+            const packSec = Number(getValByAliases(r, ["Packing Per Item (sec)", "Packing Per Item"])) || 0;
+            let pfr = Number(getValByAliases(r, ["PFR %", "PFR"])) || 0;
+            if (pfr > 0 && pfr < 1) pfr = pfr * 100;
+
+            const lateShifts = Number(getValByAliases(r, ["# of Late Shifts", "Late Shifts"])) || 0;
+            const ncoShifts = Number(getValByAliases(r, ["# of NCO Shifts", "NCO Shifts"])) || 0;
+            const workHours = Number(getValByAliases(r, ["Total Working (h)", "Working Hours"])) || 0;
+            const utr = Number(getValByAliases(r, ["UTR"])) || 0;
+
+            const poItems = Number(getValByAliases(r, ["PO Items Received", "PO Items"])) || 0;
+            const poSec = Number(getValByAliases(r, ["PO Receving Per Item (sec)", "PO Receiving Per Item (sec)", "PO Per Item"])) || 0;
+            const ccSkuSec = Number(getValByAliases(r, ["CC per SKU (sec)", "CC per SKU"])) || 0;
+            const ccItemSec = Number(getValByAliases(r, ["CC per Item (sec)", "CC per Item"])) || 0;
+
+            parsed.push({
+              pickerId: pId, date: reportDate, store: storeName,
+              orders: orders, items: items, sec: sec, packSec: packSec, pfr: pfr,
+              lateShifts: lateShifts, ncoShifts: ncoShifts, workHours: workHours, utr: utr,
+              poItems: poItems, poSec: poSec, ccSkuSec: ccSkuSec, ccItemSec: ccItemSec
+            });
+          });
+
+          if (parsed.length === 0) {
+            alert("Dosyada 'Picker Id' sütunu bulunamadı.");
+            return;
+          }
+
+          rawRecords = parsed;
+          saveLocal();
+          populateFilterDropdowns();
+          recalculateView();
+          syncCurrentAndArchiveToCloud();
+          alert("Excel yüklendi! " + parsed.length + " satır analiz edilip buluta aktarıldı.");
+        } catch (err) {
+          console.error(err);
+          alert("Dosya okuma hatası: " + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      event.target.value = "";
+    }
+
+    // Modül 5: Toplu Rehber Sürükle-Bırak
+    function handleBulkDirectoryDrop(event) {
+      event.preventDefault();
+      document.getElementById("dirDropZone").classList.remove("border-pink-500", "bg-pink-50/50");
+      const file = event.dataTransfer.files[0];
+      if (file) processBulkDirectoryFile(file);
+    }
+
+    function handleBulkDirectoryFile(event) {
+      const file = event.target.files[0];
+      if (file) processBulkDirectoryFile(file);
+      event.target.value = "";
+    }
+
+    function processBulkDirectoryFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          let addedCount = 0;
+          workbook.SheetNames.forEach(function(sheetName) {
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+            rows.forEach(function(r) {
+              const id = getValByAliases(r, ["Shopper ID", "shopper_id", "Picker Id", "picker_id", "ID"]);
+              const name = getValByAliases(r, ["İsim", "rider_name", "Ad Soyad", "Adı Soyadı", "Name"]);
+              if (id && name && String(id).trim() !== "-") {
+                directory[String(id).trim()] = String(name).trim();
+                addedCount++;
+              }
+            });
+          });
+          saveLocal();
+          renderDirectoryList();
+          recalculateView();
+          syncCurrentAndArchiveToCloud();
+          alert("✅ Toplu aktarım tamamlandı! " + addedCount + " personel eşleşmesi güncellendi.");
+        } catch (err) {
+          alert("Rehber dosyası okunamadı: " + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // ==========================================
+    // 4. HESAPLAMA, ROZETLER & AKILLI KOÇ ANALİZİ
+    // ==========================================
+    function populateFilterDropdowns() {
+      const dateSel = document.getElementById("dateFilterSelect");
+      const storeSel = document.getElementById("storeFilterSelect");
+      const uniqueDates = [];
+      const uniqueStores = [];
+
+      rawRecords.forEach(function(r) {
+        if (r.date && uniqueDates.indexOf(r.date) === -1) uniqueDates.push(r.date);
+        if (r.store && uniqueStores.indexOf(r.store) === -1) uniqueStores.push(r.store);
+      });
+
+      dateSel.innerHTML = '<option value="ALL">Tüm Tarihler (' + uniqueDates.length + ')</option>' +
+        uniqueDates.map(function(d) { return '<option value="' + d + '">' + d + '</option>'; }).join('');
+
+      storeSel.innerHTML = '<option value="ALL">Tüm Mağazalar (' + uniqueStores.length + ')</option>' +
+        uniqueStores.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+
+      const label = uniqueDates.length === 0 ? "Veri Bekleniyor"
+                  : uniqueDates.length === 1 ? uniqueDates[0]
+                  : uniqueDates[0] + " - " + uniqueDates[uniqueDates.length - 1];
+
+      document.getElementById("headerReportDate").innerText = label;
+      document.getElementById("printDateBadge").innerText = "Rapor Tarihi: " + label;
+    }
+
+    function computePreviousSpeeds() {
+      previousSpeedMap = {};
+      const keys = Object.keys(cloudArchive);
+      if (keys.length < 2) return;
+      const currentLabel = document.getElementById("headerReportDate").innerText;
+      for (let i = keys.length - 1; i >= 0; i--) {
+        const item = cloudArchive[keys[i]];
+        if (item.label !== currentLabel && item.rawRecords) {
+          const temp = {};
+          item.rawRecords.forEach(function(r) {
+            if (!temp[r.pickerId]) temp[r.pickerId] = { items: 0, secTot: 0 };
+            temp[r.pickerId].items += r.items;
+            temp[r.pickerId].secTot += (r.items * r.sec);
+          });
+          Object.keys(temp).forEach(function(pid) {
+            if (temp[pid].items > 0) previousSpeedMap[pid] = Math.round((temp[pid].secTot / temp[pid].items) * 10) / 10;
+          });
+          break;
+        }
+      }
+    }
+
+    function recalculateView() {
+      computePreviousSpeeds();
+      const selectedDate = document.getElementById("dateFilterSelect").value;
+      const selectedStore = document.getElementById("storeFilterSelect").value;
+      const searchVal = document.getElementById("searchInput").value.toLowerCase().trim();
+
+      if (selectedDate !== "ALL") {
+        document.getElementById("headerReportDate").innerText = selectedDate;
+        document.getElementById("printDateBadge").innerText = "Rapor Tarihi: " + selectedDate;
+      }
+
+      const dateFiltered = rawRecords.filter(function(r) {
+        return selectedDate === "ALL" || r.date === selectedDate;
+      });
+
+      // Mağaza Ligi
+      const storeMap = {};
+      dateFiltered.forEach(function(r) {
+        if (!storeMap[r.store]) storeMap[r.store] = { store: r.store, pickers: {}, orders: 0, items: 0, totalSec: 0, pfrSum: 0, pfrCnt: 0 };
+        const st = storeMap[r.store];
+        if (r.orders > 0) st.pickers[r.pickerId] = true;
+        st.orders += r.orders;
+        st.items += r.items;
+        st.totalSec += (r.items * r.sec);
+        if (r.orders > 0) { st.pfrSum += r.pfr; st.pfrCnt += 1; }
+      });
+
+      storeLeagueList = Object.values(storeMap).map(function(st) {
+        return {
+          store: st.store,
+          pickerCount: Object.keys(st.pickers).length,
+          orders: st.orders,
+          items: st.items,
+          avgSec: st.items > 0 ? Math.round((st.totalSec / st.items) * 10) / 10 : 0,
+          avgPfr: st.pfrCnt > 0 ? Math.round((st.pfrSum / st.pfrCnt) * 10) / 10 : 0
+        };
+      }).sort(function(a, b) { return (a.avgSec || 999) - (b.avgSec || 999); });
+
+      document.getElementById("storeBadgeCount").innerText = storeLeagueList.length;
+
+      // Personel Bazlı Gruplama
+      const pMap = {};
+      dateFiltered.forEach(function(r) {
+        if (selectedStore !== "ALL" && r.store !== selectedStore) return;
+        if (!pMap[r.pickerId]) {
+          pMap[r.pickerId] = {
+            pickerId: r.pickerId, store: r.store, orders: 0, items: 0, totalSec: 0,
+            pfrSum: 0, pfrCnt: 0, lateShifts: 0, ncoShifts: 0, workHours: 0, utrSum: 0, utrCnt: 0,
+            poItems: 0, poSecSum: 0, poCnt: 0, ccSkuSum: 0, ccItemSum: 0, ccCnt: 0
+          };
+        }
+        const p = pMap[r.pickerId];
+        p.orders += r.orders;
+        p.items += r.items;
+        p.totalSec += (r.items * r.sec);
+        if (r.orders > 0) { p.pfrSum += r.pfr; p.pfrCnt += 1; }
+        p.lateShifts += r.lateShifts;
+        p.ncoShifts += r.ncoShifts;
+        p.workHours += r.workHours;
+        if (r.utr > 0) { p.utrSum += r.utr; p.utrCnt += 1; }
+        p.poItems += r.poItems;
+        if (r.poSec > 0) { p.poSecSum += r.poSec; p.poCnt += 1; }
+        if (r.ccSkuSec > 0 || r.ccItemSec > 0) { p.ccSkuSum += r.ccSkuSec; p.ccItemSum += r.ccItemSec; p.ccCnt += 1; }
+      });
+
+      const allGrouped = Object.values(pMap).map(function(p) {
+        const avgSec = p.items > 0 ? (p.totalSec / p.items) : 0;
+        const avgPfr = p.pfrCnt > 0 ? (p.pfrSum / p.pfrCnt) : 0;
+        const avgUtr = p.utrCnt > 0 ? (p.utrSum / p.utrCnt) : (p.workHours > 0 ? (p.items / p.workHours) : 0);
+        const score = avgSec > 0 ? Math.round((p.items / avgSec) * 10) : 0;
+        const prev = previousSpeedMap[p.pickerId];
+        const trendDiff = (prev && avgSec > 0) ? Math.round((avgSec - prev) * 10) / 10 : null;
+
+        return {
+          pickerId: p.pickerId,
+          name: directory[p.pickerId] || ("Picker " + p.pickerId),
+          store: p.store,
+          orders: p.orders,
+          items: p.items,
+          pickingPerItem: Math.round(avgSec * 10) / 10,
+          pfr: Math.round(avgPfr * 10) / 10,
+          score: score,
+          spentMin: Math.round(p.totalSec / 60),
+          lateShifts: p.lateShifts,
+          ncoShifts: p.ncoShifts,
+          workHours: Math.round(p.workHours * 10) / 10,
+          utr: Math.round(avgUtr * 10) / 10,
+          poItems: p.poItems,
+          poSec: p.poCnt > 0 ? Math.round((p.poSecSum / p.poCnt) * 10) / 10 : 0,
+          ccSkuSec: p.ccCnt > 0 ? Math.round((p.ccSkuSum / p.ccCnt) * 10) / 10 : 0,
+          ccItemSec: p.ccCnt > 0 ? Math.round((p.ccItemSum / p.ccCnt) * 10) / 10 : 0,
+          trendDiff: trendDiff,
+          badges: []
+        };
+      });
+
+      const activeOnly = allGrouped.filter(function(p) { return p.orders > 0 && p.items > 0; })
+                                   .sort(function(a, b) { return a.pickingPerItem - b.pickingPerItem; });
+
+      // MODÜL 2: OTOMATİK DİJİTAL BAŞARI ROZETLERİ (GAMIFICATION)
+      if (activeOnly.length > 0) {
+        // ⚡ Şimşek: En hızlı geçiş süresi
+        activeOnly[0].badges.push({ icon: "⚡", label: "Şimşek", color: "bg-amber-100 text-amber-800 border-amber-300" });
+
+        // 🏋️ Demir Adam: En çok ürün toplayan
+        let maxItemsPerson = activeOnly[0];
+        activeOnly.forEach(function(p) { if (p.items > maxItemsPerson.items) maxItemsPerson = p; });
+        if (maxItemsPerson) maxItemsPerson.badges.push({ icon: "🏋️", label: "Demir Adam", color: "bg-indigo-100 text-indigo-800 border-indigo-300" });
+
+        // 🎯 Keskin Nişancı: En az 300 ürün ve %0 PFR
+        activeOnly.forEach(function(p) {
+          if (p.items >= 300 && p.pfr === 0) {
+            p.badges.push({ icon: "🎯", label: "Keskin Nişancı", color: "bg-cyan-100 text-cyan-800 border-cyan-300" });
+          }
+        });
+
+        // 📦 Depo Kahramanı: Aktif sipariş toplayıp aynı zamanda en yüksek PO (Mal Kabul) yapan
+        let maxPoPerson = null;
+        activeOnly.forEach(function(p) {
+          if (p.poItems > 0 && (!maxPoPerson || p.poItems > maxPoPerson.poItems)) maxPoPerson = p;
+        });
+        if (maxPoPerson) maxPoPerson.badges.push({ icon: "📦", label: "Depo Kahramanı", color: "bg-purple-100 text-purple-800 border-purple-300" });
+      }
+
+      zeroOrderPickersList = allGrouped.filter(function(p) { return p.orders === 0 || p.items === 0; })
+                                       .sort(function(a, b) { return b.workHours - a.workHours; });
+
+      inboundList = allGrouped.filter(function(p) { return p.poItems > 0 || p.ccSkuSec > 0 || p.ccItemSec > 0; })
+                              .sort(function(a, b) { return b.poItems - a.poItems; });
+
+      document.getElementById("inboundBadgeCount").innerText = inboundList.length;
+
+      // KPI Güncelleme
+      let totOrders = 0, totItems = 0, totSec = 0, greenCnt = 0, perfectCnt = 0, pfrTot = 0;
+      activeOnly.forEach(function(p) {
+        totOrders += p.orders;
+        totItems += p.items;
+        totSec += (p.items * p.pickingPerItem);
+        pfrTot += p.pfr;
+        const isG = p.pickingPerItem <= targetThreshold;
+        if (isG) greenCnt++;
+        if (isG && p.pfr === 0) perfectCnt++;
+      });
+
+      document.getElementById("kpiTotalOrders").innerText = totOrders.toLocaleString("tr-TR");
+      document.getElementById("kpiTotalItems").innerText = totItems.toLocaleString("tr-TR");
+      document.getElementById("kpiAvgSpeed").innerHTML = (totItems > 0 ? (totSec / totItems).toFixed(1) : "0") + ' <span class="text-xs font-medium text-slate-400">sn</span>';
+      document.getElementById("kpiGreenRatio").innerText = "%" + (activeOnly.length > 0 ? Math.round((greenCnt / activeOnly.length) * 100) : 0);
+      document.getElementById("kpiGreenCounts").innerText = greenCnt + " / " + activeOnly.length + " Aktif Picker";
+      document.getElementById("kpiAvgPfr").innerText = "%" + (activeOnly.length > 0 ? (pfrTot / activeOnly.length).toFixed(1) : "0.0");
+      document.getElementById("kpiPerfectCount").innerText = perfectCnt + " Kusursuz";
+
+      // MODÜL 1: AKILLI VARDİYA & OPERASYON KOÇU KARTLARINI ÜRET
+      renderOperationCoach(activeOnly, zeroOrderPickersList);
+
+      // Arama & Durum Filtresi
+      activePickersList = activeOnly.filter(function(p) {
+        const matchSearch = p.pickerId.toLowerCase().indexOf(searchVal) !== -1 || p.name.toLowerCase().indexOf(searchVal) !== -1;
+        if (!matchSearch) return false;
+        const isG = p.pickingPerItem <= targetThreshold;
+        if (statusFilter === "green") return isG;
+        if (statusFilter === "perfect") return isG && p.pfr === 0;
+        if (statusFilter === "warning") return !isG;
+        return true;
+      });
+
+      renderActiveTable(activeOnly.length, totOrders, totItems, totSec);
+      renderZeroOrderSection(searchVal);
+      renderInboundTable();
+      renderStoreLeagueTable();
+      populatePersonalDropdown();
+      lucide.createIcons();
+    }
+
+    // MODÜL 1: AKILLI OPERASYON KOÇU MOTORU
+    function renderOperationCoach(activeList, zeroList) {
+      const sec = document.getElementById("coachSection");
+      const grid = document.getElementById("coachInsightsGrid");
+
+      if (activeList.length === 0) {
+        sec.classList.add("hidden");
+        return;
+      }
+      sec.classList.remove("hidden");
+
+      const insights = [];
+
+      // 1. Zirve Yıldızı Tespiti
+      const star = activeList[0];
+      insights.push({
+        border: "border-emerald-200 bg-emerald-50/40",
+        title: "🚀 Günün Verimlilik Lideri",
+        text: "<strong>" + star.name + "</strong>, <strong>" + star.pickingPerItem + " sn/ürün</strong> hız ve <strong>" + star.items + " ürün</strong> hacmiyle vardiya temposunu yukarı taşıdı."
+      });
+
+      // 2. Mal Kabul Yükü Nedeniyle Yavaş Görünen Personel Koruması
+      const heavyPoSlow = activeList.find(function(p) { return p.pickingPerItem > targetThreshold && p.poItems >= 50; });
+      if (heavyPoSlow) {
+        insights.push({
+          border: "border-indigo-200 bg-indigo-50/40",
+          title: "📦 Operasyonel Yük Dengesi",
+          text: "<strong>" + heavyPoSlow.name + "</strong> (" + heavyPoSlow.pickingPerItem + " sn) hedef üstünde görünse de aynı vardiyada <strong>" + heavyPoSlow.poItems + " adet Mal Kabul (PO)</strong> işlemi gerçekleştirmiştir."
+        });
+      } else {
+        const highPfr = activeList.find(function(p) { return p.pfr >= 3.0; });
+        if (highPfr) {
+          insights.push({
+            border: "border-amber-200 bg-amber-50/40",
+            title: "⚠️ Eksik Ürün (PFR) Uyarısı",
+            text: "<strong>" + highPfr.name + "</strong> için eksik ürün oranı <strong>%" + highPfr.pfr + "</strong> seviyesinde. Raf bulunabilirliği ve alternatif ürün kontrolü önerilir."
+          });
+        } else {
+          insights.push({
+            border: "border-cyan-200 bg-cyan-50/40",
+            title: "💎 Yüksek Kalite Disiplini",
+            text: "Ekip genelinde eksik ürün (PFR) oranları kontrol altında; kusursuz toplama kalitesi korunuyor."
+          });
+        }
+      }
+
+      // 3. Yavaşlayan / Gelişim Desteği Gereken Personel
+      const slowest = activeList[activeList.length - 1];
+      if (slowest && slowest.pickingPerItem > targetThreshold) {
+        insights.push({
+          border: "border-rose-200 bg-rose-50/40",
+          title: "🎯 Birebir Koçluk Önerisi",
+          text: "<strong>" + slowest.name + "</strong> (" + slowest.pickingPerItem + " sn) yeşil barem sınırının <strong>" + (slowest.pickingPerItem - targetThreshold).toFixed(1) + " sn</strong> üzerinde. Satırına tıklayarak kurtarma hedefini planlayabilirsiniz."
+        });
+      } else {
+        insights.push({
+          border: "border-emerald-200 bg-emerald-50/40",
+          title: "🏆 %100 Hedef Başarısı",
+          text: "Aktif sipariş toplayan tüm ekip üyeleri <strong>" + targetThreshold + " sn</strong> yeşil barem hedefini başarıyla yakaladı!"
+        });
+      }
+
+      grid.innerHTML = insights.map(function(ins) {
+        return '<div class="p-3.5 rounded-2xl border ' + ins.border + '">' +
+          '<p class="font-extrabold text-slate-900 mb-1">' + ins.title + '</p>' +
+          '<p class="text-slate-600 leading-relaxed">' + ins.text + '</p>' +
+        '</div>';
+      }).join('');
+    }
+
+    function toggleCoachBody() {
+      const grid = document.getElementById("coachInsightsGrid");
+      const btn = document.getElementById("coachToggleBtn");
+      if (grid.classList.contains("hidden")) {
+        grid.classList.remove("hidden");
+        btn.innerText = "Gizle";
+      } else {
+        grid.classList.add("hidden");
+        btn.innerText = "Göster";
+      }
+    }
+
+    function renderActiveTable(totalActiveCount, totOrders, totItems, totSec) {
+      const tbody = document.getElementById("performanceTableBody");
+      document.getElementById("activeRecordCount").innerText = activePickersList.length + " Aktif Picker";
+      document.getElementById("tableSummaryText").innerText = activePickersList.length + " / " + totalActiveCount + " aktif picker listelendi";
+      document.getElementById("avgBasketText").innerText = (totOrders > 0 ? (totItems / totOrders).toFixed(1) : "0") + " ürün";
+      document.getElementById("totalSpentText").innerText = Math.round(totSec / 60) + " dk";
+
+      if (activePickersList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center py-12 text-slate-400">Aktif sipariş toplayan personel kaydı bulunamadı.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = activePickersList.map(function(p, idx) {
+        const isGreen = p.pickingPerItem <= targetThreshold;
+        const hasNote = Boolean(managerNotes[p.pickerId]);
+
+        let rankBadge = '<span class="font-bold text-slate-400">' + (idx + 1) + '</span>';
+        if (statusFilter === "all") {
+          if (idx === 0) rankBadge = '<span class="text-base">🥇</span>';
+          else if (idx === 1) rankBadge = '<span class="text-base">🥈</span>';
+          else if (idx === 2) rankBadge = '<span class="text-base">🥉</span>';
+        }
+
+        let trendHtml = "";
+        if (p.trendDiff !== null && p.trendDiff !== 0) {
+          trendHtml = p.trendDiff < 0
+            ? '<div class="text-[10px] font-bold text-emerald-600 mt-0.5">▼ ' + Math.abs(p.trendDiff) + ' sn hızlandı</div>'
+            : '<div class="text-[10px] font-bold text-rose-500 mt-0.5">▲ ' + p.trendDiff + ' sn yavaşladı</div>';
+        }
+
+        const badgesHtml = p.badges.map(function(b) {
+          return '<span class="px-1.5 py-0.5 rounded border text-[10px] font-bold ' + b.color + '">' + b.icon + ' ' + b.label + '</span>';
+        }).join(' ');
+
+        const lateTag = p.lateShifts > 0 ? '<span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">⏰ ' + p.lateShifts + ' Geç</span>' : '';
+        const noteTag = hasNote ? '<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300 text-[10px] font-bold" title="' + managerNotes[p.pickerId] + '">📝 Not</span>' : '';
+
+        return '<tr onclick="openPersonDetail(\'' + p.pickerId + '\')" class="hover:bg-pink-50/40 cursor-pointer transition border-b border-slate-100">' +
+          '<td class="py-3 px-4 text-center">' + rankBadge + '</td>' +
+          '<td class="py-3 px-3 font-mono font-bold text-slate-600">' + p.pickerId + '</td>' +
+          '<td class="py-3 px-4">' +
+            '<div class="flex flex-wrap items-center gap-1.5">' +
+              '<span class="font-bold text-slate-900">' + p.name + '</span>' + badgesHtml + lateTag + noteTag +
+            '</div>' +
+            '<div class="text-[10px] text-slate-400 mt-0.5">' + p.store + '</div>' +
+          '</td>' +
+          '<td class="py-3 px-3 text-right font-semibold text-slate-600">' + p.orders + '</td>' +
+          '<td class="py-3 px-3 text-right font-black text-slate-900">' + p.items.toLocaleString("tr-TR") + '</td>' +
+          '<td class="py-3 px-3 text-center">' +
+            '<span class="inline-block px-2.5 py-0.5 rounded-lg font-black text-xs text-white ' + (isGreen ? 'bg-emerald-500' : 'bg-rose-500') + '">' + p.pickingPerItem + ' sn</span>' +
+            trendHtml +
+          '</td>' +
+          '<td class="py-3 px-3 text-center">' +
+            '<div class="font-bold text-slate-700">' + (p.utr > 0 ? p.utr + ' UTR' : '-') + '</div>' +
+            '<div class="text-[10px] text-slate-400">' + (p.workHours > 0 ? p.workHours + ' sa' : '') + '</div>' +
+          '</td>' +
+          '<td class="py-3 px-3 text-center font-bold ' + (p.pfr === 0 ? 'text-emerald-600' : 'text-amber-600') + '">%' + p.pfr + '</td>' +
+          '<td class="py-3 px-3 text-center"><span class="px-2 py-0.5 rounded bg-slate-100 font-black text-slate-700">' + p.score + '</span></td>' +
+          '<td class="py-3 px-4 text-center">' +
+            (isGreen
+              ? '<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">✓ Yeşil Barem</span>'
+              : '<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">⚠ Hedef Dışı</span>') +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function renderZeroOrderSection(searchVal) {
+      const secEl = document.getElementById("zeroOrderSection");
+      const tbody = document.getElementById("zeroOrderTableBody");
+      const filteredZero = zeroOrderPickersList.filter(function(p) {
+        return p.pickerId.toLowerCase().indexOf(searchVal) !== -1 || p.name.toLowerCase().indexOf(searchVal) !== -1;
+      });
+
+      if (filteredZero.length === 0) {
+        secEl.classList.add("hidden");
+        return;
+      }
+
+      secEl.classList.remove("hidden");
+      document.getElementById("zeroOrderCountBadge").innerText = filteredZero.length + " Personel";
+
+      tbody.innerHTML = filteredZero.map(function(p) {
+        let altTask = '<span class="text-slate-400">Sipariş / Mal Kabul Kaydı Yok</span>';
+        if (p.poItems > 0) {
+          altTask = '<span class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">📦 Mal Kabul: ' + p.poItems + ' ürün (' + p.poSec + ' sn)</span>';
+        } else if (p.ccSkuSec > 0 || p.ccItemSec > 0) {
+          altTask = '<span class="px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 font-bold border border-cyan-200">📋 Stok Sayımı Yaptı</span>';
+        }
+
+        const discipline = (p.lateShifts > 0 || p.ncoShifts > 0)
+          ? '<span class="text-rose-600 font-bold">' + p.lateShifts + ' Geç / ' + p.ncoShifts + ' NCO</span>'
+          : '<span class="text-emerald-600 font-semibold">Sorunsuz</span>';
+
+        return '<tr onclick="openPersonDetail(\'' + p.pickerId + '\')" class="hover:bg-amber-50/40 cursor-pointer border-b border-slate-100">' +
+          '<td class="py-2.5 px-4 font-mono font-bold text-slate-600">' + p.pickerId + '</td>' +
+          '<td class="py-2.5 px-4 font-bold text-slate-900">' + p.name + (managerNotes[p.pickerId] ? ' 📝' : '') + '</td>' +
+          '<td class="py-2.5 px-4 text-slate-500">' + p.store + '</td>' +
+          '<td class="py-2.5 px-4 text-center font-bold text-slate-700">' + (p.workHours > 0 ? p.workHours + ' saat' : '-') + '</td>' +
+          '<td class="py-2.5 px-4 text-center">' + discipline + '</td>' +
+          '<td class="py-2.5 px-4 text-center">' + altTask + '</td>' +
+          '<td class="py-2.5 px-4 text-center no-print"><span class="text-[11px] font-bold ys-text underline">Detay & Not</span></td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function renderInboundTable() {
+      const tbody = document.getElementById("inboundTableBody");
+      if (inboundList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-slate-400">Bu raporda Mal Kabul (PO) veya Sayım (CC) verisi bulunmuyor.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = inboundList.map(function(p) {
+        return '<tr onclick="openPersonDetail(\'' + p.pickerId + '\')" class="hover:bg-slate-50 cursor-pointer border-b border-slate-100">' +
+          '<td class="py-3 px-4 font-mono font-bold text-slate-600">' + p.pickerId + '</td>' +
+          '<td class="py-3 px-4 font-bold text-slate-900">' + p.name + '</td>' +
+          '<td class="py-3 px-4 text-slate-500">' + p.store + '</td>' +
+          '<td class="py-3 px-4 text-right font-black text-indigo-700">' + p.poItems.toLocaleString("tr-TR") + ' adet</td>' +
+          '<td class="py-3 px-4 text-center font-bold">' + (p.poSec > 0 ? p.poSec + ' sn' : '-') + '</td>' +
+          '<td class="py-3 px-4 text-center font-semibold">' + (p.ccSkuSec > 0 ? p.ccSkuSec + ' sn' : '-') + '</td>' +
+          '<td class="py-3 px-4 text-center font-semibold">' + (p.ccItemSec > 0 ? p.ccItemSec + ' sn' : '-') + '</td>' +
+          '<td class="py-3 px-4 text-center font-bold text-slate-700">' + (p.workHours > 0 ? p.workHours + ' sa' : '-') + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function renderStoreLeagueTable() {
+      const tbody = document.getElementById("storeLeagueBody");
+      if (storeLeagueList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-slate-400">Mağaza ligi için veri bekleniyor.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = storeLeagueList.map(function(st, idx) {
+        const isGreen = st.avgSec > 0 && st.avgSec <= targetThreshold;
+        const badge = idx === 0 ? '🏆 1.' : idx === 1 ? '🥈 2.' : idx === 2 ? '🥉 3.' : (idx + 1) + '.';
+        return '<tr class="hover:bg-slate-50 border-b border-slate-100">' +
+          '<td class="py-3 px-4 text-center font-black">' + badge + '</td>' +
+          '<td class="py-3 px-4 font-bold text-slate-900">' + st.store + '</td>' +
+          '<td class="py-3 px-4 text-center font-semibold">' + st.pickerCount + ' kişi</td>' +
+          '<td class="py-3 px-4 text-right font-semibold">' + st.orders.toLocaleString("tr-TR") + '</td>' +
+          '<td class="py-3 px-4 text-right font-black">' + st.items.toLocaleString("tr-TR") + '</td>' +
+          '<td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-lg font-black text-white ' + (isGreen ? 'bg-emerald-500' : 'bg-rose-500') + '">' + st.avgSec + ' sn</span></td>' +
+          '<td class="py-3 px-4 text-center font-bold">%' + st.avgPfr + '</td>' +
+          '<td class="py-3 px-4 text-center">' + (isGreen ? '<span class="text-emerald-600 font-bold">✓ Hedef İçinde</span>' : '<span class="text-rose-600 font-bold">Hedef Üstü</span>') + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    // ==========================================
+    // 5. MODÜL 4: "PERSONEL KARNEM" (MOBİL ÇALIŞAN GÖRÜNÜMÜ)
+    // ==========================================
+    function populatePersonalDropdown() {
+      const sel = document.getElementById("personalSelect");
+      const currentVal = sel.value;
+      const all = activePickersList.concat(zeroOrderPickersList);
+
+      sel.innerHTML = '<option value="">-- Adınızı veya Picker ID Seçin (' + all.length + ') --</option>' +
+        all.map(function(p) {
+          return '<option value="' + p.pickerId + '">' + p.name + ' (ID: ' + p.pickerId + ' • ' + p.store + ')</option>';
+        }).join('');
+
+      if (currentVal) {
+        sel.value = currentVal;
+        renderPersonalScorecard();
+      }
+    }
+
+    function renderPersonalScorecard() {
+      const pid = document.getElementById("personalSelect").value;
+      const container = document.getElementById("personalCardContainer");
+
+      if (!pid) {
+        container.classList.add("hidden");
+        return;
+      }
+
+      const activeIdx = activePickersList.findIndex(function(p) { return p.pickerId === pid; });
+      const person = activeIdx !== -1 ? activePickersList[activeIdx] : zeroOrderPickersList.find(function(p) { return p.pickerId === pid; });
+
+      if (!person) {
+        container.classList.add("hidden");
+        return;
+      }
+
+      container.classList.remove("hidden");
+      const isGreen = person.orders > 0 && person.pickingPerItem <= targetThreshold;
+      const rankText = activeIdx !== -1 ? ("#" + (activeIdx + 1) + " / " + activePickersList.length + " Sıra") : "Destek / Mal Kabul Görevi";
+
+      const badgesHtml = person.badges.length > 0
+        ? person.badges.map(function(b) {
+            return '<span class="px-3 py-1 rounded-full text-xs font-extrabold border ' + b.color + '">' + b.icon + ' ' + b.label + '</span>';
+          }).join(' ')
+        : '<span class="text-xs text-slate-400">Henüz özel rozet kazanılmadı</span>';
+
+      const gapHtml = person.orders === 0
+        ? '<p class="text-xs text-amber-800 bg-amber-50 p-3.5 rounded-2xl border border-amber-200">Bu raporda sipariş toplama kaydınız bulunmuyor. Mal Kabul (PO): <strong>' + person.poItems + ' ürün</strong>.</p>'
+        : isGreen
+          ? '<p class="text-xs text-emerald-800 bg-emerald-50 p-3.5 rounded-2xl border border-emerald-200 font-semibold">🎉 Harika iş! <strong>' + person.pickingPerItem + ' sn</strong> hız ile <strong>' + targetThreshold + ' sn</strong> hedefinin içindesin. Böyle devam!</p>'
+          : '<p class="text-xs text-rose-800 bg-rose-50 p-3.5 rounded-2xl border border-rose-200 font-semibold">🎯 Yeşil bareme (≤ ' + targetThreshold + ' sn) girmek için ortalama hızını <strong>' + (person.pickingPerItem - targetThreshold).toFixed(1) + ' sn</strong> düşürmelisin.</p>';
+
+      container.innerHTML =
+        '<div class="bg-white rounded-3xl border border-slate-200/80 shadow-md overflow-hidden">' +
+          '<div class="ys-bg p-6 text-white text-center">' +
+            '<span class="px-3 py-1 rounded-full bg-white/20 text-xs font-bold">' + rankText + '</span>' +
+            '<h3 class="text-2xl font-black mt-2">' + person.name + '</h3>' +
+            '<p class="text-xs text-pink-100 mt-0.5">ID: ' + person.pickerId + ' • ' + person.store + '</p>' +
+            '<div class="mt-4 inline-block px-5 py-2 rounded-2xl bg-white text-slate-900 shadow-sm">' +
+              '<span class="text-3xl font-black ' + (isGreen ? 'text-emerald-600' : 'ys-text') + '">' + (person.orders > 0 ? person.pickingPerItem + ' sn' : 'Pasif') + '</span>' +
+              '<span class="block text-[10px] font-bold text-slate-400 uppercase">Ürün Başına Geçiş Süresi</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="p-6 space-y-5">' +
+            '<div class="flex flex-wrap justify-center gap-2">' + badgesHtml + '</div>' +
+            '<div class="grid grid-cols-3 gap-2.5 text-center">' +
+              '<div class="bg-slate-50 p-3 rounded-2xl"><p class="text-[10px] font-bold text-slate-400">SİPARİŞ</p><p class="text-lg font-black text-slate-800">' + person.orders + '</p></div>' +
+              '<div class="bg-slate-50 p-3 rounded-2xl"><p class="text-[10px] font-bold text-slate-400">ÜRÜN</p><p class="text-lg font-black text-slate-800">' + person.items + '</p></div>' +
+              '<div class="bg-slate-50 p-3 rounded-2xl"><p class="text-[10px] font-bold text-slate-400">EKSİK (PFR)</p><p class="text-lg font-black ' + (person.pfr === 0 ? 'text-emerald-600' : 'text-amber-600') + '">%' + person.pfr + '</p></div>' +
+            '</div>' +
+            gapHtml +
+            (managerNotes[pid] ? '<div class="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-900"><strong>📝 Yönetici Notu:</strong> ' + managerNotes[pid] + '</div>' : '') +
+          '</div>' +
+        '</div>';
+    }
+
+    // ==========================================
+    // 6. PERSONEL DETAY MODAL, TREND & SİMÜLATÖR
+    // ==========================================
+    function openPersonDetail(pickerId) {
+      const person = activePickersList.find(function(p) { return p.pickerId === pickerId; }) ||
+                     zeroOrderPickersList.find(function(p) { return p.pickerId === pickerId; });
+      if (!person) return;
+      selectedDetailPerson = person;
+
+      document.getElementById("detStoreChip").innerText = person.store;
+      document.getElementById("detDisciplineChip").innerText = person.lateShifts > 0 ? (person.lateShifts + " Geç Kalma") : "Vardiya Uyumlu";
+      document.getElementById("detPersonName").innerText = person.name;
+      document.getElementById("detPersonMeta").innerText = "Picker ID: " + person.pickerId + " • Sipariş: " + person.orders + " • Ürün: " + person.items;
+
+      document.getElementById("detSpeed").innerText = person.pickingPerItem > 0 ? (person.pickingPerItem + " sn") : "Sipariş Yok";
+      document.getElementById("detUtr").innerText = person.utr > 0 ? person.utr : "-";
+      document.getElementById("detWorkHours").innerText = person.workHours > 0 ? (person.workHours + " sa") : "-";
+      document.getElementById("detPfr").innerText = "%" + person.pfr;
+
+      const noteArea = document.getElementById("detManagerNote");
+      const saveBtn = document.getElementById("saveNoteBtn");
+      const hint = document.getElementById("noteLockHint");
+      noteArea.value = managerNotes[pickerId] || "";
+      noteArea.disabled = !isAdmin;
+      saveBtn.style.display = isAdmin ? "inline-block" : "none";
+      hint.innerText = isAdmin ? "Yönetici Yetkisi Aktif" : "Not eklemek için sağ üstten Yönetici girişi yapın";
+
+      renderPersonTrendChart(pickerId);
+      document.getElementById("simPaceSlider").value = Math.max(6, Math.min(11, targetThreshold - 2));
+      updateSimulatorCalc();
+
+      document.getElementById("personDetailModal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function renderPersonTrendChart(pickerId) {
+      const chartBox = document.getElementById("detTrendChart");
+      const points = [];
+
+      Object.keys(cloudArchive).forEach(function(k) {
+        const rep = cloudArchive[k];
+        if (!rep.rawRecords) return;
+        let items = 0, secTot = 0;
+        rep.rawRecords.forEach(function(r) {
+          if (r.pickerId === pickerId) { items += r.items; secTot += (r.items * r.sec); }
+        });
+        if (items > 0) points.push({ label: rep.label || k, avg: Math.round((secTot / items) * 10) / 10 });
+      });
+
+      if (points.length === 0) {
+        chartBox.innerHTML = '<p class="text-xs text-slate-400 m-auto">Arşivde geçmiş gün verisi bulunmuyor.</p>';
+        return;
+      }
+
+      const recent = points.slice(-7);
+      const maxVal = Math.max.apply(null, recent.map(function(pt) { return pt.avg; }).concat([15]));
+
+      chartBox.innerHTML = recent.map(function(pt) {
+        const heightPct = Math.max(20, Math.min(100, Math.round((pt.avg / maxVal) * 85)));
+        const isG = pt.avg <= targetThreshold;
+        return '<div class="flex-1 flex flex-col items-center justify-end h-full">' +
+          '<span class="text-[10px] font-black mb-1 ' + (isG ? 'text-emerald-600' : 'text-rose-600') + '">' + pt.avg + 's</span>' +
+          '<div style="height:' + heightPct + '%" class="w-full max-w-[36px] rounded-t-lg ' + (isG ? 'bg-emerald-500' : 'bg-rose-500') + '"></div>' +
+          '<span class="text-[9px] text-slate-400 truncate max-w-[54px] mt-1">' + pt.label.split(" ")[0] + ' ' + (pt.label.split(" ")[1] || '') + '</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    function updateSimulatorCalc() {
+      if (!selectedDetailPerson) return;
+      const pace = Number(document.getElementById("simPaceSlider").value);
+      document.getElementById("simPaceLabel").innerText = pace + " sn/ürün";
+      const box = document.getElementById("simResultBox");
+
+      if (selectedDetailPerson.orders === 0) {
+        box.innerText = "Bu personel bu raporda hiç sipariş toplamamıştır.";
+        return;
+      }
+      if (selectedDetailPerson.pickingPerItem <= targetThreshold) {
+        box.innerHTML = '🎉 <strong>' + selectedDetailPerson.name + '</strong> şu an <strong>' + selectedDetailPerson.pickingPerItem + ' sn</strong> ile yeşil barem hedefini yakalamış durumda.';
+        return;
+      }
+      if (pace >= targetThreshold) {
+        box.innerHTML = '⚠️ Hedef olan <strong>' + targetThreshold + ' sn</strong> altına inmek için daha hızlı bir tempo seçin.';
+        return;
+      }
+
+      const neededItems = Math.ceil((selectedDetailPerson.items * (selectedDetailPerson.pickingPerItem - targetThreshold)) / (targetThreshold - pace));
+      box.innerHTML = '👉 Ortalamayı <strong>' + targetThreshold + ' sn</strong> yeşil baremine çekmek için kalan vardiyada <strong>' + pace + ' sn</strong> hızla yaklaşık <span class="px-1.5 py-0.5 rounded bg-pink-100 text-pink-800 font-black">' + neededItems + ' ürün</span> daha toplamalıdır.';
+    }
+
+    async function saveManagerNote() {
+      if (!isAdmin || !selectedDetailPerson) return;
+      const noteText = document.getElementById("detManagerNote").value.trim();
+      if (noteText) managerNotes[selectedDetailPerson.pickerId] = noteText;
+      else delete managerNotes[selectedDetailPerson.pickerId];
+
+      try {
+        await fetch(DB_URL + "/picker_data/notes.json", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(managerNotes)
+        });
+        recalculateView();
+        alert("✅ Yönetici notu buluta kaydedildi.");
+      } catch (e) {
+        alert("Not kaydedilirken bağlantı hatası oluştu.");
+      }
+    }
+
+    // ==========================================
+    // 7. PNG PODYUM GÖRSELİ & WHATSAPP METNİ
+    // ==========================================
+    function downloadPodiumPNG() {
+      if (activePickersList.length === 0) {
+        alert("Görsel oluşturmak için önce Excel verisi yüklemelisiniz.");
+        return;
+      }
+      const canvas = document.getElementById("podiumCanvas");
+      const ctx = canvas.getContext("2d");
+      const reportDateText = document.getElementById("headerReportDate").innerText;
+
+      const grad = ctx.createLinearGradient(0, 0, 1080, 1350);
+      grad.addColorStop(0, "#EA004B");
+      grad.addColorStop(1, "#990030");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1080, 1350);
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "900 50px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("PICKER PERFORMANCE YILDIZLARI", 540, 105);
+
+      ctx.fillStyle = "#FFE4E6";
+      ctx.font = "600 28px Inter, sans-serif";
+      ctx.fillText("📅 " + reportDateText + "   |   🎯 Hedef: ≤ " + targetThreshold + " sn", 540, 158);
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath();
+      ctx.roundRect(60, 200, 960, 1070, 32);
+      ctx.fill();
+
+      const top3 = activePickersList.slice(0, 3);
+      const medals = ["🥇 1. ŞAMPİYON", "🥈 2. YILDIZ", "🥉 3. YILDIZ"];
+      top3.forEach(function(p, i) {
+        const y = 245 + (i * 165);
+        ctx.fillStyle = "#F8FAFC";
+        ctx.beginPath();
+        ctx.roundRect(100, y, 880, 140, 22);
+        ctx.fill();
+
+        ctx.fillStyle = "#EA004B";
+        ctx.font = "800 22px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(medals[i], 130, y + 46);
+
+        ctx.fillStyle = "#0F172A";
+        ctx.font = "800 32px Inter, sans-serif";
+        ctx.fillText(p.name, 130, y + 96);
+
+        ctx.fillStyle = "#10B981";
+        ctx.beginPath();
+        ctx.roundRect(755, y + 25, 195, 90, 18);
+        ctx.fill();
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "900 34px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(p.pickingPerItem + " sn", 852, y + 72);
+        ctx.font = "600 18px Inter, sans-serif";
+        ctx.fillText(p.items + " ürün", 852, y + 100);
+      });
+
+      const otherGreens = activePickersList.slice(3).filter(function(p) { return p.pickingPerItem <= targetThreshold; });
+      ctx.fillStyle = "#0F172A";
+      ctx.font = "800 26px Inter, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("🌟 YEŞİL BAREMDEKİ DİĞER EKİP ARKADAŞLARIMIZ (" + otherGreens.length + " Kişi)", 100, 790);
+
+      ctx.fillStyle = "#334155";
+      ctx.font = "600 23px Inter, sans-serif";
+      otherGreens.slice(0, 8).forEach(function(p, idx) {
+        ctx.fillText("• " + p.name + " — " + p.pickingPerItem + " sn/ürün (" + p.items + " ürün)", 115, 840 + (idx * 42));
+      });
+
+      ctx.fillStyle = "#94A3B8";
+      ctx.font = "600 20px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Tüm ekibimizin emeklerine sağlık! • Picker Performance Portalı", 540, 1230);
+
+      const link = document.createElement("a");
+      link.download = "picker-performance-" + reportDateText.replace(/\s+/g, "-") + ".png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+
+    function copyWhatsAppMessage() {
+      if (activePickersList.length === 0) {
+        alert("WhatsApp metni için önce veri yükleyin.");
+        return;
+      }
+      const reportDate = document.getElementById("headerReportDate").innerText;
+      const greenList = activePickersList.filter(function(p) { return p.pickingPerItem <= targetThreshold; });
+
+      let msg = "📢 *PICKER PERFORMANCE BÜLTENİ* 🚀\n";
+      msg += "📅 *Tarih:* " + reportDate + "\n";
+      msg += "🎯 *Hedef Geçiş Süresi:* ≤ " + targetThreshold + " sn (Yeşil Barem)\n\n";
+      msg += "👏 *TEBRİKLER! Hedefi Yakalayan Ekip Arkadaşlarımız:* 🏆\n\n";
+
+      greenList.forEach(function(p, idx) {
+        const icon = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "⭐";
+        const badgeStr = p.badges.length > 0 ? " [" + p.badges.map(function(b) { return b.icon + " " + b.label; }).join(", ") + "]" : "";
+        msg += icon + " *" + p.name + "*" + badgeStr + "\n";
+        msg += "   ↳ *Hız:* " + p.pickingPerItem + " sn/ürün | *Ürün:* " + p.items + " adet\n\n";
+      });
+
+      msg += "Tüm ekibimizin emeklerine sağlık! 💪✨";
+      navigator.clipboard.writeText(msg).then(function() {
+        alert("✅ WhatsApp tebrik mesajı kopyalandı!");
+      });
+    }
+
+    // ==========================================
+    // 8. FIREBASE BULUT & ARŞİV YÖNETİMİ
+    // ==========================================
+    async function syncCurrentAndArchiveToCloud() {
+      try {
+        const reportDateLabel = document.getElementById("headerReportDate").innerText;
+        const safeKey = reportDateLabel.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ_-]/g, "_");
+
+        await fetch(DB_URL + "/picker_data/live_v4.json", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rawRecords: rawRecords,
+            directory: directory,
+            targetThreshold: targetThreshold
+          })
+        });
+
+        if (rawRecords.length > 0 && safeKey !== "Veri_Bekleniyor") {
+          await fetch(DB_URL + "/picker_data/archive/" + safeKey + ".json", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              label: reportDateLabel,
+              rawRecords: rawRecords,
+              savedAt: new Date().toLocaleString("tr-TR")
+            })
+          });
+        }
+        fetchArchiveFromCloud(false);
+      } catch (e) {}
+    }
+
+    async function loadLiveFromCloud() {
+      try {
+        const [liveRes, notesRes] = await Promise.all([
+          fetch(DB_URL + "/picker_data/live_v4.json"),
+          fetch(DB_URL + "/picker_data/notes.json")
+        ]);
+        const data = await liveRes.json();
+        const notesData = await notesRes.json();
+
+        if (notesData) managerNotes = notesData;
+        if (data) {
+          if (data.directory) directory = Object.assign({}, directory, data.directory);
+          if (data.targetThreshold) {
+            targetThreshold = Number(data.targetThreshold);
+            document.getElementById("thresholdSec").value = targetThreshold;
+            document.getElementById("thresholdBadge").innerText = "≤ " + targetThreshold + " sn";
+          }
+          if (data.rawRecords && data.rawRecords.length > 0) {
+            rawRecords = data.rawRecords;
+            populateFilterDropdowns();
+            recalculateView();
+          }
+          document.getElementById("directoryCount").innerText = Object.keys(directory).length;
+        }
+      } catch (e) {}
+    }
+
+    async function fetchArchiveFromCloud(showAlert) {
+      try {
+        const res = await fetch(DB_URL + "/picker_data/archive.json");
+        const data = await res.json();
+        cloudArchive = data || {};
+        const keys = Object.keys(cloudArchive);
+        document.getElementById("archiveCount").innerText = keys.length;
+        document.getElementById("monthlyBadgeCount").innerText = keys.length;
+        renderMonthlyChampions();
+        if (rawRecords.length > 0) recalculateView();
+        if (showAlert) alert("Bulut arşivi güncellendi (" + keys.length + " rapor).");
+      } catch (e) {}
+    }
+
+    function openArchiveModal() {
+      document.getElementById("archiveModal").classList.remove("hidden");
+      const listEl = document.getElementById("archiveList");
+      const keys = Object.keys(cloudArchive);
+      if (keys.length === 0) {
+        listEl.innerHTML = '<p class="text-center py-8 text-slate-400">Bulut arşivinde kayıtlı rapor yok.</p>';
+        return;
+      }
+      listEl.innerHTML = keys.map(function(k) {
+        const item = cloudArchive[k];
+        return '<div class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-200">' +
+          '<div><p class="font-bold text-slate-800">📅 ' + (item.label || k) + '</p><p class="text-[11px] text-slate-400">Kayıt: ' + (item.savedAt || '-') + '</p></div>' +
+          '<div class="flex items-center gap-2">' +
+            '<button onclick="restoreFromArchive(\'' + k + '\')" class="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold">Yükle</button>' +
+            '<button onclick="deleteArchiveItem(\'' + k + '\')" class="p-1.5 text-slate-400 hover:text-rose-600"><i data-lucide="trash" class="w-4 h-4"></i></button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function restoreFromArchive(key) {
+      const item = cloudArchive[key];
+      if (!item || !item.rawRecords) return;
+      rawRecords = item.rawRecords;
+      populateFilterDropdowns();
+      recalculateView();
+      closeModal("archiveModal");
+    }
+
+    async function deleteArchiveItem(key) {
+      if (!confirm("Arşivden silinsin mi?")) return;
+      await fetch(DB_URL + "/picker_data/archive/" + key + ".json", { method: "DELETE" });
+      delete cloudArchive[key];
+      openArchiveModal();
+      fetchArchiveFromCloud(false);
+    }
+
+    function renderMonthlyChampions() {
+      const tbody = document.getElementById("monthlyLeagueBody");
+      const keys = Object.keys(cloudArchive);
+      if (keys.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-slate-400">Bulut arşivinde henüz rapor yok.</td></tr>';
+        return;
+      }
+
+      const champMap = {};
+      keys.forEach(function(k) {
+        const recs = cloudArchive[k].rawRecords || [];
+        const dayMap = {};
+        recs.forEach(function(r) {
+          if (r.orders <= 0) return;
+          if (!dayMap[r.pickerId]) dayMap[r.pickerId] = { items: 0, secTot: 0 };
+          dayMap[r.pickerId].items += r.items;
+          dayMap[r.pickerId].secTot += (r.items * r.sec);
+        });
+        Object.keys(dayMap).forEach(function(pid) {
+          if (!champMap[pid]) champMap[pid] = { pickerId: pid, reports: 0, greenDays: 0, items: 0, totalSec: 0 };
+          const d = dayMap[pid];
+          const avg = d.items > 0 ? (d.secTot / d.items) : 0;
+          champMap[pid].reports += 1;
+          if (avg > 0 && avg <= targetThreshold) champMap[pid].greenDays += 1;
+          champMap[pid].items += d.items;
+          champMap[pid].totalSec += d.secTot;
+        });
+      });
+
+      const list = Object.values(champMap).map(function(c) {
+        const avg = c.items > 0 ? (c.totalSec / c.items) : 0;
+        const pts = Math.round((c.greenDays * 100) + (avg > 0 ? (c.items / avg) : 0));
+        return {
+          pickerId: c.pickerId, name: directory[c.pickerId] || ("Picker " + c.pickerId),
+          reports: c.reports, greenDays: c.greenDays, items: c.items,
+          avgSec: Math.round(avg * 10) / 10, points: pts
+        };
+      }).sort(function(a, b) { return b.points - a.points; });
+
+      tbody.innerHTML = list.map(function(c, idx) {
+        const badge = idx === 0 ? '👑 1.' : idx === 1 ? '🥈 2.' : idx === 2 ? '🥉 3.' : (idx + 1) + '.';
+        return '<tr class="border-b border-slate-100 hover:bg-slate-50">' +
+          '<td class="py-3 px-4 text-center font-black">' + badge + '</td>' +
+          '<td class="py-3 px-4 font-mono font-bold text-slate-600">' + c.pickerId + '</td>' +
+          '<td class="py-3 px-4 font-bold text-slate-900">' + c.name + '</td>' +
+          '<td class="py-3 px-4 text-center font-semibold">' + c.reports + ' rapor</td>' +
+          '<td class="py-3 px-4 text-center font-bold text-emerald-600">' + c.greenDays + ' gün</td>' +
+          '<td class="py-3 px-4 text-right font-black">' + c.items.toLocaleString("tr-TR") + '</td>' +
+          '<td class="py-3 px-4 text-center font-bold">' + c.avgSec + ' sn</td>' +
+          '<td class="py-3 px-4 text-center"><span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-black">' + c.points + ' Puan</span></td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    // ==========================================
+    // 9. UI YARDIMCILARI & REHBER
+    // ==========================================
+    function switchTab(tab) {
+      ["personnel", "inbound", "stores", "monthly"].forEach(function(t) {
+        document.getElementById("view-" + t).classList.add("hidden");
+        document.getElementById("tabBtn-" + t).className = "px-3.5 py-1.5 rounded-xl text-xs font-semibold transition tab-pill-inactive flex items-center gap-1.5 whitespace-nowrap";
+      });
+      document.getElementById("view-" + tab).classList.remove("hidden");
+      document.getElementById("tabBtn-" + tab).className = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition tab-pill-active flex items-center gap-1.5 whitespace-nowrap";
+    }
+
+    function setStatusFilter(type) {
+      statusFilter = type;
+      const map = { all: "btnFilterAll", green: "btnFilterGreen", perfect: "btnFilterPerfect", warning: "btnFilterWarning" };
+      Object.keys(map).forEach(function(k) {
+        document.getElementById(map[k]).className = (k === type)
+          ? "px-2.5 py-1 rounded-lg bg-white shadow-sm text-slate-900"
+          : "px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900";
+      });
+      recalculateView();
+    }
+
+    function saveThreshold() {
+      const v = Number(document.getElementById("thresholdSec").value);
+      if (v > 0) {
+        targetThreshold = v;
+        document.getElementById("thresholdBadge").innerText = "≤ " + targetThreshold + " sn";
+        saveLocal();
+        recalculateView();
+      }
+    }
+
+    function confirmClearData() {
+      if (confirm("Ekrandaki tablo verileri temizlensin mi? (Arşiv ve rehber korunur)")) {
+        rawRecords = [];
+        populateFilterDropdowns();
+        recalculateView();
+      }
+    }
+
+    function openDirectoryModal() {
+      document.getElementById("directoryModal").classList.remove("hidden");
+      renderDirectoryList();
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
+
+    function renderDirectoryList() {
+      const listEl = document.getElementById("directoryList");
+      const q = (document.getElementById("dirSearchInput").value || "").toLowerCase().trim();
+      const keys = Object.keys(directory).filter(function(id) {
+        return id.toLowerCase().indexOf(q) !== -1 || directory[id].toLowerCase().indexOf(q) !== -1;
+      });
+      document.getElementById("directoryCount").innerText = Object.keys(directory).length;
+
+      listEl.innerHTML = keys.map(function(id) {
+        return '<div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-100">' +
+          '<div class="flex items-center gap-2">' +
+            '<span class="font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-200">' + id + '</span>' +
+            '<span class="font-semibold text-slate-800">' + directory[id] + '</span>' +
+          '</div>' +
+          '<button onclick="removePickerFromDirectory(\'' + id + '\')" class="text-slate-400 hover:text-rose-600 p-1"><i data-lucide="trash" class="w-3.5 h-3.5"></i></button>' +
+        '</div>';
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function addPickerToDirectory() {
+      const id = document.getElementById("newPickerId").value.trim();
+      const name = document.getElementById("newPickerName").value.trim();
+      if (!id || !name) return;
+      directory[id] = name;
+      saveLocal();
+      document.getElementById("newPickerId").value = "";
+      document.getElementById("newPickerName").value = "";
+      renderDirectoryList();
+      recalculateView();
+      syncCurrentAndArchiveToCloud();
+    }
+
+    function removePickerFromDirectory(id) {
+      delete directory[id];
+      saveLocal();
+      renderDirectoryList();
+      recalculateView();
+    }
+
+    function saveLocal() {
+      try {
+        localStorage.setItem("pp_dir_v4", JSON.stringify(directory));
+        localStorage.setItem("pp_thresh_v4", String(targetThreshold));
+      } catch (e) {}
+    }
+
+    function loadLocal() {
+      try {
+        const d = localStorage.getItem("pp_dir_v4");
+        if (d) directory = Object.assign({}, directory, JSON.parse(d));
+        const t = localStorage.getItem("pp_thresh_v4");
+        if (t) {
+          targetThreshold = Number(t);
+          document.getElementById("thresholdSec").value = targetThreshold;
+          document.getElementById("thresholdBadge").innerText = "≤ " + targetThreshold + " sn";
+        }
+      } catch (e) {}
+    }
+
+    window.addEventListener("DOMContentLoaded", function() {
+      loadLocal();
+      applyAuthUI();
+      document.getElementById("directoryCount").innerText = Object.keys(directory).length;
+      if (typeof lucide !== "undefined") lucide.createIcons();
+      loadLiveFromCloud();
+      fetchArchiveFromCloud(false);
+    });
+  </script>
+</body>
+</html>
