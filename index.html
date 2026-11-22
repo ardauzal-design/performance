@@ -6,6 +6,7 @@
   <title>Picker Performance • Dmart Operasyon Portalı</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -69,6 +70,11 @@
       <div class="flex items-center gap-1.5">
         <button onclick="window.print()" class="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition" title="Kurumsal PDF Brifing Yazdır">
           <i data-lucide="printer" class="w-3.5 h-3.5"></i> PDF
+        </button>
+
+        <!-- YENİ: YÜKSEK ÇÖZÜNÜRLÜKLÜ TABLO PNG İNDİRME BUTONU -->
+        <button onclick="downloadDashboardPNG()" id="btnDownloadTablePNG" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200/80 text-xs font-bold transition" title="KPI, Akıllı Koç ve Performans Tablosunu HD PNG Olarak İndir">
+          <i data-lucide="camera" class="w-3.5 h-3.5 text-indigo-600"></i> <span>Tablo PNG</span>
         </button>
 
         <button onclick="downloadPodiumPNG()" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 text-xs font-bold transition" title="Podyum Tebrik Görseli İndir">
@@ -143,208 +149,226 @@
   <!-- ======================================================================= -->
   <main id="appView-manager" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
 
-    <!-- Yazdırma / PDF Başlığı (Sadece PDF çıktısında görünür) -->
-    <div class="hidden print:flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-4">
-      <div>
-        <h1 class="text-2xl font-black text-slate-900">Picker Performance • Yönetici Operasyon Brifingi</h1>
-        <p id="printSubtitle" class="text-xs text-slate-500 mt-1">İzmir Depoları Performans & Kalite Raporu</p>
-      </div>
-      <div class="text-right">
-        <span id="printDateBadge" class="text-sm font-black text-pink-600">-</span>
-      </div>
-    </div>
-
-    <!-- 5 MİNİMALİST KPI KARTI -->
-    <section class="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
-        <div>
-          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Toplam Sipariş</p>
-          <p id="kpiTotalOrders" class="text-2xl font-black text-slate-900 mt-1">0</p>
-          <p class="text-[11px] text-slate-400 mt-0.5">Picked Orders</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center no-print">
-          <i data-lucide="package" class="w-5 h-5"></i>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
-        <div>
-          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Toplanan Ürün</p>
-          <p id="kpiTotalItems" class="text-2xl font-black text-slate-900 mt-1">0</p>
-          <p class="text-[11px] text-slate-400 mt-0.5">Picked Items</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center no-print">
-          <i data-lucide="layers" class="w-5 h-5"></i>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
-        <div>
-          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Ort. Geçiş Hızı</p>
-          <p id="kpiAvgSpeed" class="text-2xl font-black text-slate-900 mt-1">0 <span class="text-xs font-medium text-slate-400">sn</span></p>
-          <p class="text-[11px] text-emerald-600 font-semibold mt-0.5">Ağırlıklı Ort.</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center no-print">
-          <i data-lucide="gauge" class="w-5 h-5"></i>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
-        <div>
-          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Yeşil Barem</p>
-          <p id="kpiGreenRatio" class="text-2xl font-black text-slate-900 mt-1">%0</p>
-          <p id="kpiGreenCounts" class="text-[11px] text-slate-400 mt-0.5">0 / 0 Aktif Picker</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-pink-50 ys-text flex items-center justify-center no-print">
-          <i data-lucide="target" class="w-5 h-5"></i>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between col-span-2 lg:col-span-1">
-        <div>
-          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Ort. Eksik (PFR)</p>
-          <p id="kpiAvgPfr" class="text-2xl font-black text-slate-900 mt-1">%0.0</p>
-          <p id="kpiPerfectCount" class="text-[11px] text-cyan-600 font-semibold mt-0.5">0 Kusursuz</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center no-print">
-          <i data-lucide="gem" class="w-5 h-5"></i>
-        </div>
-      </div>
-    </section>
-
-    <!-- MODÜL 1: AKILLI VARDİYA & OPERASYON KOÇU (OTOMATİK TEŞHİS KARTLARI) -->
-    <section id="coachSection" class="hidden bg-white rounded-2xl border border-indigo-100 shadow-sm print-shadow-none overflow-hidden">
-      <div class="px-5 py-3 bg-gradient-to-r from-indigo-50/80 via-purple-50/40 to-white border-b border-indigo-100/60 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-          </span>
-          <div>
-            <h2 class="text-xs font-extrabold text-slate-900">Akıllı Vardiya & Operasyon Koçu</h2>
-            <p class="text-[10px] text-slate-500">Hız, kalite (PFR), mal kabul yükü ve geçmiş trendlerin otomatik çapraz analizi</p>
-          </div>
-        </div>
-        <button onclick="toggleCoachBody()" class="text-[11px] font-bold text-indigo-600 hover:underline no-print" id="coachToggleBtn">Gizle</button>
-      </div>
-      <div id="coachInsightsGrid" class="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs"></div>
-    </section>
-
-    <!-- SEKME 1: PERSONEL PERFORMANSI -->
-    <div id="view-personnel" class="space-y-6">
+    <!-- YAKALANACAK ANA RAPOR ALANI (KPI + AKILLI KOÇ + PERFORMANS TABLOSU) -->
+    <div id="whatsappCaptureArea" class="space-y-6 bg-[#f8fafc] rounded-3xl">
       
-      <!-- Sade Filtre Şeridi -->
-      <div class="bg-white rounded-2xl p-3.5 border border-slate-200/70 shadow-sm flex flex-wrap items-center justify-between gap-3 no-print">
-        <div class="flex flex-wrap items-center gap-2 flex-1">
-          <div class="relative w-48 sm:w-56">
-            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400"></i>
-            <input type="text" id="searchInput" oninput="recalculateView()" placeholder="ID veya İsim ara..." 
-                   class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-pink-500">
-          </div>
-
-          <select id="dateFilterSelect" onchange="recalculateView()" class="px-3 py-1.5 bg-pink-50/60 border border-pink-200 rounded-xl text-xs font-bold text-pink-800 focus:outline-none">
-            <option value="ALL">Tüm Rapor Tarihleri</option>
-          </select>
-
-          <select id="storeFilterSelect" onchange="recalculateView()" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none">
-            <option value="ALL">Tüm Mağazalar</option>
-          </select>
-
-          <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-            <button onclick="setStatusFilter('all')" id="btnFilterAll" class="px-2.5 py-1 rounded-lg bg-white shadow-sm text-slate-900">Tümü</button>
-            <button onclick="setStatusFilter('green')" id="btnFilterGreen" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900">Yeşil Barem</button>
-            <button onclick="setStatusFilter('perfect')" id="btnFilterPerfect" class="px-2.5 py-1 rounded-lg text-cyan-700 hover:text-cyan-900">💎 Kusursuz</button>
-            <button onclick="setStatusFilter('warning')" id="btnFilterWarning" class="px-2.5 py-1 rounded-lg text-rose-700 hover:text-rose-900">Dikkat</button>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-slate-500 font-medium">Hedef:</span>
-          <input type="number" id="thresholdSec" value="12" min="1" max="60" onchange="saveThreshold()"
-                 class="w-12 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-center text-slate-800 focus:outline-none focus:border-pink-500">
-          <span id="thresholdBadge" class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">≤ 12 sn</span>
-        </div>
-      </div>
-
-      <!-- Ana Sıralama Tablosu -->
-      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm print-shadow-none overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <!-- Sadece PNG İndirilirken Görünen Kurumsal Üst Başlık -->
+      <div id="pngCaptureBanner" class="hidden items-center justify-between bg-white px-5 py-3.5 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl ys-bg flex items-center justify-center text-white font-black text-base">P</div>
           <div>
-            <h2 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-              <i data-lucide="award" class="w-4 h-4 ys-text"></i>
-              Aktif Sipariş Toplayanlar & Başarı Rozetleri
-            </h2>
-            <p class="text-[11px] text-slate-400 mt-0.5">⚡ Şimşek (En Hızlı) • 🏋️ Demir Adam (En Çok Hacim) • 🎯 Keskin Nişancı (≥300 Ürün & %0 PFR) • 📦 Depo Kahramanı</p>
+            <h2 class="text-base font-black text-slate-900 tracking-tight">Picker Performance • Operasyon Raporu</h2>
+            <p id="pngCaptureSub" class="text-xs font-semibold text-slate-500">Tüm Mağazalar • Hedef: ≤ 12 sn</p>
           </div>
-          <span id="activeRecordCount" class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">0 Aktif Picker</span>
         </div>
-
-        <div class="overflow-x-auto custom-scroll">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                <th class="py-3 px-4 text-center w-12">Sıra</th>
-                <th class="py-3 px-3">Picker ID</th>
-                <th class="py-3 px-4">Personel & Başarı Rozetleri</th>
-                <th class="py-3 px-3 text-right">Sipariş</th>
-                <th class="py-3 px-3 text-right">Ürün</th>
-                <th class="py-3 px-3 text-center">Geçiş Hızı & Trend</th>
-                <th class="py-3 px-3 text-center">UTR / Saat</th>
-                <th class="py-3 px-3 text-center">Eksik (PFR)</th>
-                <th class="py-3 px-3 text-center">Skor</th>
-                <th class="py-3 px-4 text-center">Durum</th>
-              </tr>
-            </thead>
-            <tbody id="performanceTableBody" class="divide-y divide-slate-100 text-xs">
-              <tr>
-                <td colspan="10" class="text-center py-14 text-slate-400">
-                  <i data-lucide="file-spreadsheet" class="w-9 h-9 mx-auto text-slate-300 mb-2"></i>
-                  Henüz veri yüklenmedi. Sağ üstten <strong>Yönetici</strong> girişi yaparak Excel dosyanızı yükleyebilirsiniz.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="bg-slate-50/70 px-5 py-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between text-[11px] text-slate-500">
-          <span id="tableSummaryText">0 aktif picker listelendi</span>
-          <div class="flex items-center gap-4">
-            <span>Ort. Sepet: <strong id="avgBasketText" class="text-slate-700">0 ürün</strong></span>
-            <span>Toplam Toplama Süresi: <strong id="totalSpentText" class="text-slate-700">0 dk</strong></span>
-          </div>
+        <div class="text-right">
+          <span id="pngCaptureDate" class="px-3 py-1 rounded-full text-xs font-black bg-pink-50 text-pink-700 border border-pink-200">-</span>
         </div>
       </div>
 
-      <!-- AYRI LİSTE: HİÇ SİPARİŞ TOPLAMAYANLAR -->
-      <div id="zeroOrderSection" class="hidden bg-white rounded-2xl border border-amber-200/80 shadow-sm print-shadow-none overflow-hidden">
-        <div class="px-5 py-3.5 bg-amber-50/60 border-b border-amber-200/70 flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center no-print">
-              <i data-lucide="user-minus" class="w-4 h-4"></i>
-            </div>
-            <div>
-              <h3 class="text-sm font-extrabold text-amber-950">Hiç Sipariş Toplamayanlar (0 Sipariş / Destek Görevleri)</h3>
-              <p class="text-[11px] text-amber-800/80">Hız sıralamasını etkilememesi için ayrıldı • Mal Kabul (PO) veya Sayım (CC) yapanlar burada görünür</p>
-            </div>
+      <!-- Yazdırma / PDF Başlığı (Sadece PDF çıktısında görünür) -->
+      <div class="hidden print:flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-4">
+        <div>
+          <h1 class="text-2xl font-black text-slate-900">Picker Performance • Yönetici Operasyon Brifingi</h1>
+          <p id="printSubtitle" class="text-xs text-slate-500 mt-1">İzmir Depoları Performans & Kalite Raporu</p>
+        </div>
+        <div class="text-right">
+          <span id="printDateBadge" class="text-sm font-black text-pink-600">-</span>
+        </div>
+      </div>
+
+      <!-- 5 MİNİMALİST KPI KARTI -->
+      <section class="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+        <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Toplam Sipariş</p>
+            <p id="kpiTotalOrders" class="text-2xl font-black text-slate-900 mt-1">0</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Picked Orders</p>
           </div>
-          <span id="zeroOrderCountBadge" class="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900">0 Personel</span>
+          <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center no-print">
+            <i data-lucide="package" class="w-5 h-5"></i>
+          </div>
         </div>
 
-        <div class="overflow-x-auto custom-scroll">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                <th class="py-2.5 px-4">Picker ID</th>
-                <th class="py-2.5 px-4">Personel Adı Soyadı</th>
-                <th class="py-2.5 px-4">Mağaza</th>
-                <th class="py-2.5 px-4 text-center">Çalışma Süresi</th>
-                <th class="py-2.5 px-4 text-center">Vardiya Disiplini</th>
-                <th class="py-2.5 px-4 text-center">Alternatif Görev (Mal Kabul / Sayım)</th>
-                <th class="py-2.5 px-4 text-center no-print">İşlem</th>
-              </tr>
-            </thead>
-            <tbody id="zeroOrderTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
-          </table>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Toplanan Ürün</p>
+            <p id="kpiTotalItems" class="text-2xl font-black text-slate-900 mt-1">0</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Picked Items</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center no-print">
+            <i data-lucide="layers" class="w-5 h-5"></i>
+          </div>
         </div>
+
+        <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Ort. Geçiş Hızı</p>
+            <p id="kpiAvgSpeed" class="text-2xl font-black text-slate-900 mt-1">0 <span class="text-xs font-medium text-slate-400">sn</span></p>
+            <p class="text-[11px] text-emerald-600 font-semibold mt-0.5">Ağırlıklı Ort.</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center no-print">
+            <i data-lucide="gauge" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Yeşil Barem</p>
+            <p id="kpiGreenRatio" class="text-2xl font-black text-slate-900 mt-1">%0</p>
+            <p id="kpiGreenCounts" class="text-[11px] text-slate-400 mt-0.5">0 / 0 Aktif Picker</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-pink-50 ys-text flex items-center justify-center no-print">
+            <i data-lucide="target" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-sm print-shadow-none flex items-center justify-between col-span-2 lg:col-span-1">
+          <div>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Ort. Eksik (PFR)</p>
+            <p id="kpiAvgPfr" class="text-2xl font-black text-slate-900 mt-1">%0.0</p>
+            <p id="kpiPerfectCount" class="text-[11px] text-cyan-600 font-semibold mt-0.5">0 Kusursuz</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center no-print">
+            <i data-lucide="gem" class="w-5 h-5"></i>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODÜL 1: AKILLI VARDİYA & OPERASYON KOÇU (OTOMATİK TEŞHİS KARTLARI) -->
+      <section id="coachSection" class="hidden bg-white rounded-2xl border border-indigo-100 shadow-sm print-shadow-none overflow-hidden">
+        <div class="px-5 py-3 bg-gradient-to-r from-indigo-50/80 via-purple-50/40 to-white border-b border-indigo-100/60 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+            </span>
+            <div>
+              <h2 class="text-xs font-extrabold text-slate-900">Akıllı Vardiya & Operasyon Koçu</h2>
+              <p class="text-[10px] text-slate-500">Hız, kalite (PFR), mal kabul yükü ve geçmiş trendlerin otomatik çapraz analizi</p>
+            </div>
+          </div>
+          <button onclick="toggleCoachBody()" class="text-[11px] font-bold text-indigo-600 hover:underline no-print hide-on-capture" id="coachToggleBtn">Gizle</button>
+        </div>
+        <div id="coachInsightsGrid" class="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs"></div>
+      </section>
+
+      <!-- SEKME 1: PERSONEL PERFORMANSI -->
+      <div id="view-personnel" class="space-y-6">
+        
+        <!-- Sade Filtre Şeridi (PNG çekiminde otomatik gizlenir) -->
+        <div class="bg-white rounded-2xl p-3.5 border border-slate-200/70 shadow-sm flex flex-wrap items-center justify-between gap-3 no-print hide-on-capture">
+          <div class="flex flex-wrap items-center gap-2 flex-1">
+            <div class="relative w-48 sm:w-56">
+              <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400"></i>
+              <input type="text" id="searchInput" oninput="recalculateView()" placeholder="ID veya İsim ara..." 
+                     class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-pink-500">
+            </div>
+
+            <select id="dateFilterSelect" onchange="recalculateView()" class="px-3 py-1.5 bg-pink-50/60 border border-pink-200 rounded-xl text-xs font-bold text-pink-800 focus:outline-none">
+              <option value="ALL">Tüm Rapor Tarihleri</option>
+            </select>
+
+            <select id="storeFilterSelect" onchange="recalculateView()" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none">
+              <option value="ALL">Tüm Mağazalar</option>
+            </select>
+
+            <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+              <button onclick="setStatusFilter('all')" id="btnFilterAll" class="px-2.5 py-1 rounded-lg bg-white shadow-sm text-slate-900">Tümü</button>
+              <button onclick="setStatusFilter('green')" id="btnFilterGreen" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900">Yeşil Barem</button>
+              <button onclick="setStatusFilter('perfect')" id="btnFilterPerfect" class="px-2.5 py-1 rounded-lg text-cyan-700 hover:text-cyan-900">💎 Kusursuz</button>
+              <button onclick="setStatusFilter('warning')" id="btnFilterWarning" class="px-2.5 py-1 rounded-lg text-rose-700 hover:text-rose-900">Dikkat</button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500 font-medium">Hedef:</span>
+            <input type="number" id="thresholdSec" value="12" min="1" max="60" onchange="saveThreshold()"
+                   class="w-12 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-center text-slate-800 focus:outline-none focus:border-pink-500">
+            <span id="thresholdBadge" class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">≤ 12 sn</span>
+          </div>
+        </div>
+
+        <!-- Ana Sıralama Tablosu -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm print-shadow-none overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h2 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <i data-lucide="award" class="w-4 h-4 ys-text"></i>
+                Aktif Sipariş Toplayanlar & Başarı Rozetleri
+              </h2>
+              <p class="text-[11px] text-slate-400 mt-0.5">⚡ Şimşek (En Hızlı) • 🏋️ Demir Adam (En Çok Hacim) • 🎯 Keskin Nişancı (≥300 Ürün & %0 PFR) • 📦 Depo Kahramanı</p>
+            </div>
+            <span id="activeRecordCount" class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">0 Aktif Picker</span>
+          </div>
+
+          <div class="overflow-x-auto custom-scroll" id="tableScrollWrapper">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                  <th class="py-3 px-4 text-center w-12">Sıra</th>
+                  <th class="py-3 px-3">Picker ID</th>
+                  <th class="py-3 px-4">Personel & Başarı Rozetleri</th>
+                  <th class="py-3 px-3 text-right">Sipariş</th>
+                  <th class="py-3 px-3 text-right">Ürün</th>
+                  <th class="py-3 px-3 text-center">Geçiş Hızı & Trend</th>
+                  <th class="py-3 px-3 text-center">UTR / Saat</th>
+                  <th class="py-3 px-3 text-center">Eksik (PFR)</th>
+                  <th class="py-3 px-3 text-center">Skor</th>
+                  <th class="py-3 px-4 text-center">Durum</th>
+                </tr>
+              </thead>
+              <tbody id="performanceTableBody" class="divide-y divide-slate-100 text-xs">
+                <tr>
+                  <td colspan="10" class="text-center py-14 text-slate-400">
+                    <i data-lucide="file-spreadsheet" class="w-9 h-9 mx-auto text-slate-300 mb-2"></i>
+                    Henüz veri yüklenmedi. Sağ üstten <strong>Yönetici</strong> girişi yaparak Excel dosyanızı yükleyebilirsiniz.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bg-slate-50/70 px-5 py-3 border-t border-slate-200/80 flex flex-wrap items-center justify-between text-[11px] text-slate-500">
+            <span id="tableSummaryText">0 aktif picker listelendi</span>
+            <div class="flex items-center gap-4">
+              <span>Ort. Sepet: <strong id="avgBasketText" class="text-slate-700">0 ürün</strong></span>
+              <span>Toplam Toplama Süresi: <strong id="totalSpentText" class="text-slate-700">0 dk</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div> <!-- /whatsappCaptureArea -->
+
+    <!-- AYRI LİSTE: HİÇ SİPARİŞ TOPLAMAYANLAR -->
+    <div id="zeroOrderSection" class="hidden bg-white rounded-2xl border border-amber-200/80 shadow-sm print-shadow-none overflow-hidden">
+      <div class="px-5 py-3.5 bg-amber-50/60 border-b border-amber-200/70 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center no-print">
+            <i data-lucide="user-minus" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-extrabold text-amber-950">Hiç Sipariş Toplamayanlar (0 Sipariş / Destek Görevleri)</h3>
+            <p class="text-[11px] text-amber-800/80">Hız sıralamasını etkilememesi için ayrıldı • Mal Kabul (PO) veya Sayım (CC) yapanlar burada görünür</p>
+          </div>
+        </div>
+        <span id="zeroOrderCountBadge" class="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900">0 Personel</span>
+      </div>
+
+      <div class="overflow-x-auto custom-scroll">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <th class="py-2.5 px-4">Picker ID</th>
+              <th class="py-2.5 px-4">Personel Adı Soyadı</th>
+              <th class="py-2.5 px-4">Mağaza</th>
+              <th class="py-2.5 px-4 text-center">Çalışma Süresi</th>
+              <th class="py-2.5 px-4 text-center">Vardiya Disiplini</th>
+              <th class="py-2.5 px-4 text-center">Alternatif Görev (Mal Kabul / Sayım)</th>
+              <th class="py-2.5 px-4 text-center no-print">İşlem</th>
+            </tr>
+          </thead>
+          <tbody id="zeroOrderTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+        </table>
       </div>
     </div>
 
@@ -596,7 +620,6 @@
         </button>
       </div>
       <div class="p-5 space-y-3.5">
-        <!-- Modül 5: Sürükle-Bırak Toplu Excel İsim Aktarımı -->
         <label id="dirDropZone" ondragover="event.preventDefault(); this.classList.add('border-pink-500','bg-pink-50/50')" ondragleave="this.classList.remove('border-pink-500','bg-pink-50/50')" ondrop="handleBulkDirectoryDrop(event)"
                class="cursor-pointer block border-2 border-dashed border-slate-300 hover:border-pink-400 rounded-2xl p-3.5 text-center transition bg-slate-50/60">
           <i data-lucide="file-up" class="w-5 h-5 mx-auto text-pink-600 mb-1"></i>
@@ -715,7 +738,85 @@
     };
 
     // ==========================================
-    // 2. GÖRÜNÜM MODU (YÖNETİCİ VS PERSONEL KARNEM) & YETKİ
+    // 2. YÜKSEK ÇÖZÜNÜRLÜKLÜ TABLO PNG İNDİRME (YENİ)
+    // ==========================================
+    async function downloadDashboardPNG() {
+      if (activePickersList.length === 0) {
+        alert("Görsel indirmek için önce Excel verisi yüklemelisiniz.");
+        return;
+      }
+
+      // Kullanıcı başka bir sekmedeyse önce Personel Performansı sekmesine al
+      switchAppMode("manager");
+      switchTab("personnel");
+
+      const btn = document.getElementById("btnDownloadTablePNG");
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin text-indigo-600"></i> <span>Hazırlanıyor...</span>';
+      btn.disabled = true;
+      lucide.createIcons();
+
+      const captureArea = document.getElementById("whatsappCaptureArea");
+      const banner = document.getElementById("pngCaptureBanner");
+      const reportDate = document.getElementById("headerReportDate").innerText;
+      const storeVal = document.getElementById("storeFilterSelect").value;
+      const storeLabel = storeVal === "ALL" ? "Tüm İzmir Mağazaları" : storeVal;
+
+      // Rapor üst bilgisini doldur ve görünür yap
+      document.getElementById("pngCaptureDate").innerText = "📅 " + reportDate;
+      document.getElementById("pngCaptureSub").innerText = storeLabel + "  •  Hedef Geçiş Süresi: ≤ " + targetThreshold + " sn";
+      banner.classList.remove("hidden");
+      banner.classList.add("flex");
+
+      // Arama/filtre barını ve gizle butonunu geçici olarak gizle
+      const hiddenEls = captureArea.querySelectorAll(".hide-on-capture");
+      hiddenEls.forEach(function(el) { el.style.display = "none"; });
+
+      // Yatay kaydırma varsa tüm tablonun kesilmeden çıkması için genişlet
+      const tableWrapper = document.getElementById("tableScrollWrapper");
+      const origOverflow = tableWrapper.style.overflowX;
+      tableWrapper.style.overflowX = "visible";
+
+      // Çekim sırasındaki padding ayarı
+      captureArea.style.padding = "24px";
+      captureArea.style.width = "1160px";
+
+      try {
+        await new Promise(function(resolve) { setTimeout(resolve, 150); });
+
+        const canvas = await html2canvas(captureArea, {
+          scale: 2.5, // 2.5x Ultra HD Çözünürlük (WhatsApp sıkıştırmasında bile kristal netlik)
+          useCORS: true,
+          backgroundColor: "#f8fafc",
+          logging: false,
+          windowWidth: 1220
+        });
+
+        const link = document.createElement("a");
+        const cleanFileDate = reportDate.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ_-]/g, "-");
+        link.download = "Picker-Performans-Raporu-" + cleanFileDate + ".png";
+        link.href = canvas.toDataURL("image/png", 1.0);
+        link.click();
+      } catch (err) {
+        console.error("PNG oluşturma hatası:", err);
+        alert("Görsel oluşturulurken bir hata oluştu: " + err.message);
+      } finally {
+        // Ekranı eski haline geri döndür
+        banner.classList.add("hidden");
+        banner.classList.remove("flex");
+        hiddenEls.forEach(function(el) { el.style.display = ""; });
+        tableWrapper.style.overflowX = origOverflow;
+        captureArea.style.padding = "";
+        captureArea.style.width = "";
+
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+        lucide.createIcons();
+      }
+    }
+
+    // ==========================================
+    // 3. GÖRÜNÜM MODU (YÖNETİCİ VS PERSONEL KARNEM) & YETKİ
     // ==========================================
     function switchAppMode(mode) {
       const mgrView = document.getElementById("appView-manager");
@@ -793,7 +894,7 @@
     }
 
     // ==========================================
-    // 3. EXCEL PARSER & TOPLU REHBER SÜRÜKLE-BIRAK
+    // 4. EXCEL PARSER & TOPLU REHBER SÜRÜKLE-BIRAK
     // ==========================================
     function getValByAliases(row, aliases) {
       const keys = Object.keys(row);
@@ -826,7 +927,6 @@
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: "array" });
 
-          // 2. Sayfa Varsa Rehberi Otomatik Güncelle
           if (workbook.SheetNames.length > 1) {
             const sheet2 = workbook.Sheets[workbook.SheetNames[1]];
             const s2Rows = XLSX.utils.sheet_to_json(sheet2);
@@ -906,7 +1006,6 @@
       event.target.value = "";
     }
 
-    // Modül 5: Toplu Rehber Sürükle-Bırak
     function handleBulkDirectoryDrop(event) {
       event.preventDefault();
       document.getElementById("dirDropZone").classList.remove("border-pink-500", "bg-pink-50/50");
@@ -950,7 +1049,7 @@
     }
 
     // ==========================================
-    // 4. HESAPLAMA, ROZETLER & AKILLI KOÇ ANALİZİ
+    // 5. HESAPLAMA, ROZETLER & AKILLI KOÇ ANALİZİ
     // ==========================================
     function populateFilterDropdowns() {
       const dateSel = document.getElementById("dateFilterSelect");
@@ -1014,7 +1113,6 @@
         return selectedDate === "ALL" || r.date === selectedDate;
       });
 
-      // Mağaza Ligi
       const storeMap = {};
       dateFiltered.forEach(function(r) {
         if (!storeMap[r.store]) storeMap[r.store] = { store: r.store, pickers: {}, orders: 0, items: 0, totalSec: 0, pfrSum: 0, pfrCnt: 0 };
@@ -1039,7 +1137,6 @@
 
       document.getElementById("storeBadgeCount").innerText = storeLeagueList.length;
 
-      // Personel Bazlı Gruplama
       const pMap = {};
       dateFiltered.forEach(function(r) {
         if (selectedStore !== "ALL" && r.store !== selectedStore) return;
@@ -1098,24 +1195,19 @@
       const activeOnly = allGrouped.filter(function(p) { return p.orders > 0 && p.items > 0; })
                                    .sort(function(a, b) { return a.pickingPerItem - b.pickingPerItem; });
 
-      // MODÜL 2: OTOMATİK DİJİTAL BAŞARI ROZETLERİ (GAMIFICATION)
       if (activeOnly.length > 0) {
-        // ⚡ Şimşek: En hızlı geçiş süresi
         activeOnly[0].badges.push({ icon: "⚡", label: "Şimşek", color: "bg-amber-100 text-amber-800 border-amber-300" });
 
-        // 🏋️ Demir Adam: En çok ürün toplayan
         let maxItemsPerson = activeOnly[0];
         activeOnly.forEach(function(p) { if (p.items > maxItemsPerson.items) maxItemsPerson = p; });
         if (maxItemsPerson) maxItemsPerson.badges.push({ icon: "🏋️", label: "Demir Adam", color: "bg-indigo-100 text-indigo-800 border-indigo-300" });
 
-        // 🎯 Keskin Nişancı: En az 300 ürün ve %0 PFR
         activeOnly.forEach(function(p) {
           if (p.items >= 300 && p.pfr === 0) {
             p.badges.push({ icon: "🎯", label: "Keskin Nişancı", color: "bg-cyan-100 text-cyan-800 border-cyan-300" });
           }
         });
 
-        // 📦 Depo Kahramanı: Aktif sipariş toplayıp aynı zamanda en yüksek PO (Mal Kabul) yapan
         let maxPoPerson = null;
         activeOnly.forEach(function(p) {
           if (p.poItems > 0 && (!maxPoPerson || p.poItems > maxPoPerson.poItems)) maxPoPerson = p;
@@ -1131,7 +1223,6 @@
 
       document.getElementById("inboundBadgeCount").innerText = inboundList.length;
 
-      // KPI Güncelleme
       let totOrders = 0, totItems = 0, totSec = 0, greenCnt = 0, perfectCnt = 0, pfrTot = 0;
       activeOnly.forEach(function(p) {
         totOrders += p.orders;
@@ -1151,10 +1242,8 @@
       document.getElementById("kpiAvgPfr").innerText = "%" + (activeOnly.length > 0 ? (pfrTot / activeOnly.length).toFixed(1) : "0.0");
       document.getElementById("kpiPerfectCount").innerText = perfectCnt + " Kusursuz";
 
-      // MODÜL 1: AKILLI VARDİYA & OPERASYON KOÇU KARTLARINI ÜRET
       renderOperationCoach(activeOnly, zeroOrderPickersList);
 
-      // Arama & Durum Filtresi
       activePickersList = activeOnly.filter(function(p) {
         const matchSearch = p.pickerId.toLowerCase().indexOf(searchVal) !== -1 || p.name.toLowerCase().indexOf(searchVal) !== -1;
         if (!matchSearch) return false;
@@ -1173,7 +1262,6 @@
       lucide.createIcons();
     }
 
-    // MODÜL 1: AKILLI OPERASYON KOÇU MOTORU
     function renderOperationCoach(activeList, zeroList) {
       const sec = document.getElementById("coachSection");
       const grid = document.getElementById("coachInsightsGrid");
@@ -1186,7 +1274,6 @@
 
       const insights = [];
 
-      // 1. Zirve Yıldızı Tespiti
       const star = activeList[0];
       insights.push({
         border: "border-emerald-200 bg-emerald-50/40",
@@ -1194,7 +1281,6 @@
         text: "<strong>" + star.name + "</strong>, <strong>" + star.pickingPerItem + " sn/ürün</strong> hız ve <strong>" + star.items + " ürün</strong> hacmiyle vardiya temposunu yukarı taşıdı."
       });
 
-      // 2. Mal Kabul Yükü Nedeniyle Yavaş Görünen Personel Koruması
       const heavyPoSlow = activeList.find(function(p) { return p.pickingPerItem > targetThreshold && p.poItems >= 50; });
       if (heavyPoSlow) {
         insights.push({
@@ -1219,7 +1305,6 @@
         }
       }
 
-      // 3. Yavaşlayan / Gelişim Desteği Gereken Personel
       const slowest = activeList[activeList.length - 1];
       if (slowest && slowest.pickingPerItem > targetThreshold) {
         insights.push({
@@ -1404,7 +1489,7 @@
     }
 
     // ==========================================
-    // 5. MODÜL 4: "PERSONEL KARNEM" (MOBİL ÇALIŞAN GÖRÜNÜMÜ)
+    // 6. PERSONEL KARNEM (MOBİL ÇALIŞAN GÖRÜNÜMÜ)
     // ==========================================
     function populatePersonalDropdown() {
       const sel = document.getElementById("personalSelect");
@@ -1480,7 +1565,7 @@
     }
 
     // ==========================================
-    // 6. PERSONEL DETAY MODAL, TREND & SİMÜLATÖR
+    // 7. PERSONEL DETAY MODAL, TREND & SİMÜLATÖR
     // ==========================================
     function openPersonDetail(pickerId) {
       const person = activePickersList.find(function(p) { return p.pickerId === pickerId; }) ||
@@ -1590,7 +1675,7 @@
     }
 
     // ==========================================
-    // 7. PNG PODYUM GÖRSELİ & WHATSAPP METNİ
+    // 8. PNG PODYUM GÖRSELİ & WHATSAPP METNİ
     // ==========================================
     function downloadPodiumPNG() {
       if (activePickersList.length === 0) {
@@ -1702,7 +1787,7 @@
     }
 
     // ==========================================
-    // 8. FIREBASE BULUT & ARŞİV YÖNETİMİ
+    // 9. FIREBASE BULUT & ARŞİV YÖNETİMİ
     // ==========================================
     async function syncCurrentAndArchiveToCloud() {
       try {
@@ -1868,7 +1953,7 @@
     }
 
     // ==========================================
-    // 9. UI YARDIMCILARI & REHBER
+    // 10. UI YARDIMCILARI & REHBER
     // ==========================================
     function switchTab(tab) {
       ["personnel", "inbound", "stores", "monthly"].forEach(function(t) {
